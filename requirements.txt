@@ -1,0 +1,2 @@
+httpappengine>=0.1.4
+pymongo
