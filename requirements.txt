@@ -1,2 +1,3 @@
-httpappengine>=0.1.4
+httpappengine>=0.1.6
 pymongo
+requests

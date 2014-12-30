@@ -12,20 +12,73 @@ Desc    :
 import urllib
 import requests
 import urlparse
+import base64
+import pickle
+from collections import OrderedDict
+from wsgiref.util import is_hop_by_hop
 
 
-def call_http_request(url, method, data=None, params=None, **kwargs):
-    param = ''
-    if isinstance(params, dict):
-        if '?' in url:
-            old_query_str = url[:url.rfind('?')]
-            url = url[url.rfind('?')+1:]
-            query_dict = urlparse.parse_qs(old_query_str)
-            query_dict.update(params)
-        else:
-            query_dict = params
-        param = '?%s' % urllib.urlencode(query_dict) if query_dict else ''
+def call_http_request(url, method, req_headers=None, req_data=None, req_query_string=None, **kwargs):
+    return getattr(requests, method.lower())('%s' % url, params=req_query_string, data=req_data, headers=req_headers,
+                                             **kwargs)
 
-    r = getattr(requests, method.lower())('%s%s' % (url, param), data=data)
 
-    return r
+class HttpInfo(object):
+    def __init__(self, method, url, req_query_string, req_headers, req_data, status_code, res_headers):
+        # http method type | 请求类型，如GET
+        self.method = method
+        # http url | 请求URL地址，包含domain和port，没有加上query string
+        self.url = url
+        # query string | 在url '?'后面跟着的
+        self.req_query_string = req_query_string
+        # request headers | 请求头
+        self.req_headers = self.sort_headers(req_headers)
+        # request data | http请求 data
+        self.req_data = req_data
+        # http status code | http 状态码
+        self.status_code = status_code
+        # http respond headers | 返回头
+        self.res_headers = self.sort_headers(res_headers)
+
+    def dumps(self):
+        # 序列化
+        return base64.encodestring(pickle.dumps(dict(method=self.method, url=self.url,
+                                                     req_query_string=self.req_query_string,
+                                                     req_headers=self.req_headers, req_data=self.req_data, 
+                                                     status_code=self.status_code, res_headers=self.res_headers)))
+
+    @staticmethod
+    def loads(_str):
+        # 反序列化
+        return HttpInfo(**pickle.loads(base64.decodestring(_str)))
+
+    @staticmethod
+    def sort_headers(headers):
+        # 根据headers name 进行排序
+        assert hasattr(headers, "__iter__")
+        return OrderedDict(sorted(headers.iteritems(), key=lambda d: d[0]))
+
+
+def parse_requests_result(result):
+    headers = result.headers
+    for key, val in headers.iteritems():
+        if is_hop_by_hop(key):
+            headers.pop(key)
+        elif key.lower() == 'content-encoding' and 'zip' in val:
+            headers.pop(key)
+    status_code = result.status_code
+    text = result.text
+    content_type = headers.get('Content-Type')
+    content_type_list = content_type.split(';')
+    if len(content_type_list) >= 2:
+        content_type_list[1] = ' charset=utf-8'
+    headers['Content-Type'.lower()] = str(';'.join(content_type_list))
+    output = text.encode('utf-8')
+    headers['Content-Length'.lower()] = str(len(output))
+    # 重新排序header，保持与缓存返回的一致性
+    headers = HttpInfo.sort_headers(headers)
+    return status_code, headers, output
+
+
+def get_http_result(**kwargs):
+    return parse_requests_result(call_http_request(**kwargs))

@@ -9,13 +9,18 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   
 """
+import urlparse
+
 from httpappengine.decorator import url
 from httpappengine.helper import not_found
 from config import ROUTE_URL
-from requestspool.http import call_http_request
-import urlparse
 from httplib import responses
-from wsgiref.util import is_hop_by_hop
+
+
+def get_route(path_url):
+    for route in ROUTE_URL:
+        if route.match(path_url):
+            return route
 
 
 def all_req(path_url, environ, start_response):
@@ -24,42 +29,40 @@ def all_req(path_url, environ, start_response):
     if not (path_url.startswith(u"http://") or path_url.startswith(u"https://")):
         path_url = u"http://" + unicode(path_url)
 
-    query_dict = urlparse.parse_qs(environ.get("QUERY_STRING", ""))
+    req_query_string = environ.get("QUERY_STRING", "")
     try:
         # 获取data
-        data = environ['wsgi.input'].read(int(environ.get('CONTENT_LENGTH', '0')))
+        req_data = environ['wsgi.input'].read(int(environ.get('CONTENT_LENGTH', '0')))
     except:
-        data = None
+        req_data = None
 
-    result = None
-    for route in ROUTE_URL:
-        if route.match(path_url):
-            result = route.call_http_request(url=path_url, method=method, params=query_dict, data=data)
-            break
+    requestpool_headers = {}
+    req_headers = {}
+    for key, val in environ.iteritems():
+        if key.startswith('HTTP_'):
+            # 生成req_headers 暂无需求
+            header_name = key[5:].replace('_', '-')
+            if header_name == 'host'.upper():
+                continue
+            if 'REQUESTSPOOL.' in header_name:
+                requestpool_headers[header_name] = val
+            else:
+                req_headers[header_name] = val
 
-    if result:
-        headers = result.headers
-        for key, val in headers.iteritems():
-            if is_hop_by_hop(key):
-                headers.pop(key)
-            elif key.lower() == 'content-encoding' and 'zip' in val:
-                headers.pop(key)
-        status_code = result.status_code
-        text = result.text
-        Content_Type = headers.get('Content-Type')
-        Content_Type_list = Content_Type.split(';')
-        if len(Content_Type_list) >= 2:
-            Content_Type_list[1] = ' charset=utf-8'
-        headers['Content-Type'.lower()] = str(';'.join(Content_Type_list))
-        output = text.encode('utf-8')
-        headers['Content-Length'.lower()] = str(len(output))
-        start_response("{0} {1}".format(status_code, responses.get(status_code, 'OK')), headers.items())
-        return output
-    else:
-        return not_found(start_response)
+    route = get_route(path_url)
+    status_code, headers, output = route.get_http_result(requestpool_headers=requestpool_headers,
+                                                         url=path_url, method=method, req_query_string=req_query_string,
+                                                         req_data=req_data, req_headers=req_headers)
+
+    start_response(
+        "{0} {1}".format(status_code, responses.get(status_code, 'OK')),
+        headers.items())
+    return output
+
 
 @url("/http://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def http_req(path_url, environ, start_response):
+    # return all_req(u'http://'+path_url, environ, start_response)
     return all_req(u'http://'+path_url, environ, start_response)
 
 
