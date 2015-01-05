@@ -90,50 +90,41 @@ class SpeedRoute(BaseRoute):
     def finish_req(self):
         pass
 
+    def _get_http_result(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
+        self.add_req()
+        # 发起http request
+        status_code, headers, output = get_http_result(url=url, method=method, req_headers=req_headers,
+                                                       req_data=req_data, req_query_string=req_query_string,
+                                                       **kwargs)
+        self.finish_req()
+        return status_code, headers, output
+
     def call_http_request(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
         # 失败重试#
         # 缓存成功条件
-        self.add_req()
-        try:
-            # 发起http request
-            status_code, headers, output = get_http_result(url=url, method=method, req_headers=req_headers,
-                                                           req_data=req_data, req_query_string=req_query_string,
-                                                           **kwargs)
-            if self._update:
+        status_code, headers, output = self._get_http_result(url=url, method=method, req_headers=req_headers,
+                                                             req_data=req_data, req_query_string=req_query_string,
+                                                             **kwargs)
+        if self._update:
+            save_dict = dict(method=method, url=url, req_query_string=req_query_string, req_headers=req_headers,
+                             req_data=req_data, status_code=status_code, res_headers=headers, res_data=output)
+            if self._update.retry_check_callback and self._update.retry_check_callback(**save_dict):
+                # 符合重试条件
+                for retry_count in xrange(self._update.retry_limit):
+                    # 重新发起连接
+                    status_code, headers, output = self._get_http_result(url=url, method=method,
+                                                                         req_headers=req_headers, req_data=req_data,
+                                                                         req_query_string=req_query_string, **kwargs)
+                    save_dict.update(dict(status_code=status_code, res_headers=headers, res_data=output))
+                    if not self._update.retry_check_callback(**save_dict):
+                        # 不再需要重试
+                        break
 
-                save_dict = dict(method=method, url=url, req_query_string=req_query_string, req_headers=req_headers,
-                                 req_data=req_data, status_code=status_code, res_headers=headers, res_data=output)
-                if self._update.retry_check_callback and self._update.retry_check_callback(**save_dict):
-                    # 符合重试条件
-                    for retry_count in xrange(self._update.retry_limit):
-                        # 重新发起连接
-                        self.add_req()
-                        try:
-                            status_code, headers, output = get_http_result(url=url, method=method,
-                                                                           req_headers=req_headers, req_data=req_data,
-                                                                           req_query_string=req_query_string, **kwargs)
-                        except:
-                            # 下载失败，可呢过是由于parse_requests_result函数处理出错
-                            pass
-                        finally:
-                            self.finish_req()
-                        save_dict.update(dict(status_code=status_code, res_headers=headers, res_data=output))
-                        if not self._update.retry_check_callback(**save_dict):
-                            # 不再需要重试
-                            break
-
-                if not self._update.save_check_callback or \
-                        (self._update.save_check_callback and self._update.save_check_callback(**save_dict)):
-                    # 需要缓存
-                    cache.save(**save_dict)
-            else:
-                # 没有缓存管理，每次都拿新数据
-                pass
-            return status_code, headers, output
-        except:
-            pass
-        finally:
-            self.finish_req()
+            if not self._update.save_check_callback or \
+                    (self._update.save_check_callback and self._update.save_check_callback(**save_dict)):
+                # 需要缓存
+                cache.save(**save_dict)
+        return status_code, headers, output
 
     def get_http_result(self, requestpool_headers=None, **kwargs):
         # 添加连接，满足条件会阻塞执行
@@ -149,10 +140,10 @@ class SpeedRoute(BaseRoute):
                     # 异步获取
                     self._update.backend_call(**kwargs)
                     url_info, res_data = cache.find(**kwargs)
-                    return url_info.status_code, url_info.req_headers, res_data
+                    return url_info.status_code, url_info.res_headers, res_data
                 elif requestpool_cache_control == CACHE_CONTROL_TYPE.ASYNC_NOUPDATE:
                     url_info, res_data = cache.find(**kwargs)
-                    return url_info.status_code, url_info.req_headers, res_data
+                    return url_info.status_code, url_info.res_headers, res_data
                 elif requestpool_cache_control == CACHE_CONTROL_TYPE.SYNC:
                     # 强制更新
                     return self.call_http_request(**kwargs)
@@ -164,14 +155,14 @@ class SpeedRoute(BaseRoute):
                     # 异步获取
                     self._update.backend_call(**kwargs)
                     url_info, res_data = cache.find(**kwargs)
-                    return url_info.status_code, url_info.req_headers, res_data
+                    return url_info.status_code, url_info.res_headers, res_data
                 else:
                     # 同步获取
                     return self.call_http_request(**kwargs)
             else:
                 # 在缓存周期内，不发起http 请求，直接取缓存。
                 url_info, res_data = cache.find(**kwargs)
-                return url_info.status_code, url_info.req_headers, res_data
+                return url_info.status_code, url_info.res_headers, res_data
         else:
             return self.call_http_request(**kwargs)
 
@@ -181,7 +172,7 @@ class NormalRoute(SpeedRoute):
         super(NormalRoute, self).__init__(value=value, _type=_type, **kwargs)
 
     def match(self, url):
-        # flask format url match
+        # flask style url match
         # todo 尚未实现
         pass
 

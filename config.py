@@ -9,7 +9,7 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   详细配置说明请参考httpappengine/engine/config.py
 """
-DEBUG = False
+DEBUG = True
 
 # 服务器监听地址。
 HOST = "0.0.0.0"
@@ -34,4 +34,6 @@ ROUTE_URL = [
     RegexRoute(pattern=u".*?/soccer/get_", speed=Speed(count_time=1000*10, limit_req=100), update=Update(24*60*60, False)),
     # 百度每10秒访问一次
     RegexRoute(pattern=u"http://www.baidu.com.*", speed=Speed(count_time=1000*10, limit_req=1), update=Update(100, False)),
+    # 代理请求
+    RegexRoute(pattern=u".*"),
 ]

@@ -1,3 +1,5 @@
+gevent>=1.0.1
+Werkzeug>=0.9.6
 httpappengine>=0.1.6
 pymongo
 requests
