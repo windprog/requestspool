@@ -23,8 +23,8 @@ import gevent
 import multiprocessing
 
 from interface import BaseRoute, BaseSpeed, BaseUpdate
-from http import get_http_result
-from requestspool.cache import cache, CACHE_CONTROL, CACHE_CONTROL_TYPE
+from http import get_http_result, HttpInfo
+from cache import cache, CACHE_CONTROL, CACHE_CONTROL_TYPE, CACHE_RESULT, CACHE_RESULT_TYPE
 
 
 ONESECOND = 1000.0
@@ -91,31 +91,33 @@ class SpeedRoute(BaseRoute):
         pass
 
     def _get_http_result(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
+        # 发起http请求
         self.add_req()
         # 发起http request
-        status_code, headers, output = get_http_result(url=url, method=method, req_headers=req_headers,
-                                                       req_data=req_data, req_query_string=req_query_string,
-                                                       **kwargs)
+        status_code, res_headers, output = get_http_result(url=url, method=method, req_headers=req_headers,
+                                                           req_data=req_data, req_query_string=req_query_string,
+                                                           **kwargs)
         self.finish_req()
-        return status_code, headers, output
+        return status_code, res_headers, output
 
     def call_http_request(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
-        # 失败重试#
-        # 缓存成功条件
-        status_code, headers, output = self._get_http_result(url=url, method=method, req_headers=req_headers,
-                                                             req_data=req_data, req_query_string=req_query_string,
-                                                             **kwargs)
+        # 失败重试
+        # 储存符合的结果到缓存中
+        status_code, res_headers, output = self._get_http_result(url=url, method=method, req_headers=req_headers,
+                                                                 req_data=req_data, req_query_string=req_query_string,
+                                                                 **kwargs)
         if self._update:
             save_dict = dict(method=method, url=url, req_query_string=req_query_string, req_headers=req_headers,
-                             req_data=req_data, status_code=status_code, res_headers=headers, res_data=output)
+                             req_data=req_data, status_code=status_code, res_headers=res_headers, res_data=output)
             if self._update.retry_check_callback and self._update.retry_check_callback(**save_dict):
                 # 符合重试条件
                 for retry_count in xrange(self._update.retry_limit):
                     # 重新发起连接
-                    status_code, headers, output = self._get_http_result(url=url, method=method,
-                                                                         req_headers=req_headers, req_data=req_data,
-                                                                         req_query_string=req_query_string, **kwargs)
-                    save_dict.update(dict(status_code=status_code, res_headers=headers, res_data=output))
+                    status_code, res_headers, output = self._get_http_result(url=url, method=method,
+                                                                             req_headers=req_headers, req_data=req_data,
+                                                                             req_query_string=req_query_string,
+                                                                             **kwargs)
+                    save_dict.update(dict(status_code=status_code, res_headers=res_headers, res_data=output))
                     if not self._update.retry_check_callback(**save_dict):
                         # 不再需要重试
                         break
@@ -124,47 +126,60 @@ class SpeedRoute(BaseRoute):
                     (self._update.save_check_callback and self._update.save_check_callback(**save_dict)):
                 # 需要缓存
                 cache.save(**save_dict)
-        return status_code, headers, output
+        return status_code, res_headers, output
 
-    def get_http_result(self, requestpool_headers=None, **kwargs):
-        # 添加连接，满足条件会阻塞执行
+    @staticmethod
+    def parse_nocache_res(status_code, res_headers, res_data):
+        if isinstance(res_headers, dict):
+            res_headers[CACHE_RESULT] = CACHE_RESULT_TYPE.NEW
+        return status_code, res_headers, res_data
+
+    @staticmethod
+    def parse_cache_res(url_info, res_data):
+        if isinstance(url_info.res_headers, dict):
+            url_info.res_headers[CACHE_RESULT] = CACHE_RESULT_TYPE.OLD
+        return url_info.status_code, url_info.res_headers, res_data
+
+    '''
+        requestpool_headers : 项目控制所需的header,当出现在这里时不会出现在普通request headers
+    '''
+    def http_result(self, requestpool_headers=None, **kwargs):
+        # 判断缓存条件
         if not self._update:
             # 没有缓存配置，不保存缓存
-            return self.call_http_request(**kwargs)
+            return self.parse_nocache_res(*self.call_http_request(**kwargs))
         is_expired, is_in_cache = self._update.get_expired_bool(**kwargs)
         if is_in_cache:
+            # 存在缓存
             # 外部控制
             if requestpool_headers and CACHE_CONTROL in requestpool_headers:
                 requestpool_cache_control = requestpool_headers.get(CACHE_CONTROL)
                 if requestpool_cache_control == CACHE_CONTROL_TYPE.ASYNC_UPDATE:
                     # 异步获取
-                    self._update.backend_call(**kwargs)
-                    url_info, res_data = cache.find(**kwargs)
-                    return url_info.status_code, url_info.res_headers, res_data
+                    self._update.backend_call(self, **kwargs)
+                    return self.parse_cache_res(*cache.find(**kwargs))
                 elif requestpool_cache_control == CACHE_CONTROL_TYPE.ASYNC_NOUPDATE:
-                    url_info, res_data = cache.find(**kwargs)
-                    return url_info.status_code, url_info.res_headers, res_data
+                    return self.parse_cache_res(*cache.find(**kwargs))
                 elif requestpool_cache_control == CACHE_CONTROL_TYPE.SYNC:
                     # 强制更新
-                    return self.call_http_request(**kwargs)
+                    return self.parse_nocache_res(*self.call_http_request(**kwargs))
 
-            # 存在缓存
+            # 自动控制
             if is_expired:
                 # 超出缓存时间
                 if not self._update.check_sync():
-                    # 异步获取
-                    self._update.backend_call(**kwargs)
-                    url_info, res_data = cache.find(**kwargs)
-                    return url_info.status_code, url_info.res_headers, res_data
+                    # 异步取，拿旧数据
+                    self._update.backend_call(self, **kwargs)
+                    return self.parse_cache_res(*cache.find(**kwargs))
                 else:
                     # 同步获取
-                    return self.call_http_request(**kwargs)
+                    print 'success'
+                    return self.parse_nocache_res(*self.call_http_request(**kwargs))
             else:
                 # 在缓存周期内，不发起http 请求，直接取缓存。
-                url_info, res_data = cache.find(**kwargs)
-                return url_info.status_code, url_info.res_headers, res_data
+                return self.parse_cache_res(*cache.find(**kwargs))
         else:
-            return self.call_http_request(**kwargs)
+            return self.parse_nocache_res(*self.call_http_request(**kwargs))
 
 
 class NormalRoute(SpeedRoute):
@@ -181,6 +196,7 @@ class RegexRoute(SpeedRoute):
     def __init__(self, pattern, flags=0, **kwargs):
         super(RegexRoute, self).__init__(_type=TYPE.REGEX, **kwargs)
         self._value = re.compile(pattern, flags=flags)
+        self._pattern = pattern
 
     def match(self, url):
         return self._value.match(url)

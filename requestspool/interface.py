@@ -86,4 +86,8 @@ class BaseHttpCache(object):
     def save(self, method, url, req_query_string, req_headers, req_data, status_code, res_headers, res_data):
         pass
 
+    @abstractmethod
+    def delete(self, method, url, req_query_string, req_headers, req_data):
+        pass
+
 

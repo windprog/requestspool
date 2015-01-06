@@ -9,18 +9,14 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   
 """
-import urlparse
-
 from httpappengine.decorator import url
 from httpappengine.helper import not_found
-from config import ROUTE_URL
 from httplib import responses
 
+from requestspool.util import get_route
 
-def get_route(path_url):
-    for route in ROUTE_URL:
-        if route.match(path_url):
-            return route
+
+
 
 
 def all_req(path_url, environ, start_response):
@@ -50,7 +46,7 @@ def all_req(path_url, environ, start_response):
                 req_headers[header_name] = val
 
     route = get_route(path_url)
-    status_code, headers, output = route.get_http_result(requestpool_headers=requestpool_headers,
+    status_code, headers, output = route.http_result(requestpool_headers=requestpool_headers,
                                                          url=path_url, method=method, req_query_string=req_query_string,
                                                          req_data=req_data, req_headers=req_headers)
 
@@ -77,6 +73,19 @@ def route_add(environ, start_response):
     return not_found(start_response)
 
 @url("/admin/route/all", "GET")
-def route_add(environ, start_response):
+def route_show_all(environ, start_response):
     # 尚未实现
     return not_found(start_response)
+
+@url("/check", "GET")
+def check(environ, start_response):
+    # 检测get_route
+    get_route('http://test')
+    s = "Running!\n"
+
+    start_response("200 OK", [
+        ("Content-Type", "text/plain"),
+        ("Content-Length", str(len(s)))
+    ])
+
+    return s

@@ -9,16 +9,21 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   
 """
-import urllib
 import requests
-import urlparse
 import base64
 import pickle
 from collections import OrderedDict
 from wsgiref.util import is_hop_by_hop
 
+import config
+
 
 def call_http_request(url, method, req_headers=None, req_data=None, req_query_string=None, **kwargs):
+    if config.DEBUG:
+        from requests.models import RequestEncodingMixin
+
+        print 'call http %s%s' % (
+        url, '?' + RequestEncodingMixin._encode_params(req_query_string) if req_query_string else '')
     return getattr(requests, method.lower())('%s' % url, params=req_query_string, data=req_data, headers=req_headers,
                                              **kwargs)
 
@@ -44,7 +49,7 @@ class HttpInfo(object):
         # 序列化
         return base64.encodestring(pickle.dumps(dict(method=self.method, url=self.url,
                                                      req_query_string=self.req_query_string,
-                                                     req_headers=self.req_headers, req_data=self.req_data, 
+                                                     req_headers=self.req_headers, req_data=self.req_data,
                                                      status_code=self.status_code, res_headers=self.res_headers)))
 
     @staticmethod
