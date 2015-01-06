@@ -95,6 +95,7 @@ class CacheTestCase(TestCase):
     def test_nocachre(self):
         s, r = self.count_time(self.req.req)
         self.assertTrue(r.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.NEW)
+        # 偶尔下载时间小于0.1也是可以接受的
         self.assertTrue(s.total_seconds() > 0.1)
 
     def test_waittime(self):
@@ -137,6 +138,7 @@ class CacheTestCase(TestCase):
             # 需要下载
             self.assertTrue(s3 > s2)  # 下载时间大于取缓存时间
             self.assertTrue(s3.total_seconds() < 3)  # 下载时间小于3秒
+            # 偶尔下载时间小于0.1也是可以接受的
             self.assertTrue(s3.total_seconds() > 0.1)  # 下载时间大于0.1秒
         else:
             # 取缓存
