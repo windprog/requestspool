@@ -94,8 +94,8 @@ class CacheTestCase(TestCase):
 
     def test_nocachre(self):
         s, r = self.count_time(self.req.req)
-        self.assertTrue(s.total_seconds() > 0.1)
         self.assertTrue(r.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.NEW)
+        self.assertTrue(s.total_seconds() > 0.1)
 
     def test_waittime(self):
         route = get_route(self.req.url)
