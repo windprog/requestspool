@@ -23,7 +23,7 @@ def get_route(path_url):
                 ROUTE_URL = val
                 break
         else:
-            raise ImportError(u'没有找到理由列表,请参考route_default.py')
+            raise ImportError(u'没有找到路由列表,请参考route_default.py')
         globals()['ROUTE_URL'] = ROUTE_URL
     else:
         ROUTE_URL = globals()['ROUTE_URL']
