@@ -53,6 +53,7 @@ def all_req(path_url, environ, start_response):
     return output
 
 
+
 @url("/http://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def http_req(path_url, environ, start_response):
     # return all_req(u'http://'+path_url, environ, start_response)
@@ -69,10 +70,12 @@ def route_add(environ, start_response):
     # 尚未实现
     return not_found(start_response)
 
+
 @url("/admin/route/all", "GET")
 def route_show_all(environ, start_response):
     # 尚未实现
     return not_found(start_response)
+
 
 @url("/check", "GET")
 def check(environ, start_response):
@@ -86,6 +89,7 @@ def check(environ, start_response):
     ])
 
     return s
+
 
 @url("/", "GET")
 def index(environ, start_response):
