@@ -7,13 +7,9 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/26
-Desc    :   
+Desc    :   接口调用规范。
 """
 from abc import ABCMeta, abstractmethod
-
-#
-# 接口调用规范。
-#
 
 
 class BaseSpeed(object):

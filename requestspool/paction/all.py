@@ -7,7 +7,7 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/26
-Desc    :   
+Desc    :   wsgi handler
 """
 from httpappengine.decorator import url
 from httpappengine.helper import not_found

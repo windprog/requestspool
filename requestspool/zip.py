@@ -7,7 +7,7 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/29
-Desc    :   
+Desc    :   数据压缩
 """
 import StringIO
 import gzip

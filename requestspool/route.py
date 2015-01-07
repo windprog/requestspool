@@ -7,10 +7,11 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/26
-Desc    :
+Desc    :   路由,具体实现需要继承interface.BaseSpeed
 
-外部请求头
-requestpool.cachecontrol
+外部缓存控制,需要添加请求头:
+key      : REQUESTPOOL.CACHECONTROL
+value    :
     * async_update    异步强制更新，返回之前的数据
     * async_noupdate  强制不更新，返回之前的数据
     * sync            强制更新，返回新数据

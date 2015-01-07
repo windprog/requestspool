@@ -7,7 +7,7 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/26
-Desc    :   
+Desc    :   发起http请求的相关方法和http信息
 """
 import requests
 import base64

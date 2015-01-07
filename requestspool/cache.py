@@ -7,7 +7,7 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/29
-Desc    :   
+Desc    :   缓存,具体实现需要继承interface.BaseHttpCache
 """
 from gridfs import GridFS
 from gridfs.grid_file import NoFile

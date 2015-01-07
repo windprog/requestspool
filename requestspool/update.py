@@ -7,7 +7,7 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   14/12/29
-Desc    :   
+Desc    :   缓存更新控制器,具体实现需要继承interface.BaseUpdate
 """
 from interface import BaseUpdate
 import datetime

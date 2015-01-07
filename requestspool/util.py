@@ -7,7 +7,7 @@ Copyright (c) 2014 windpro
 Author  :   windpro
 E-mail  :   windprog@gmail.com
 Date    :   15/1/6
-Desc    :   
+Desc    :   方法集合
 """
 from importlib import import_module
 
