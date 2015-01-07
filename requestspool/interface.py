@@ -71,11 +71,6 @@ class BaseRoute(object):
         # 检测url是否满足本路由条件
         pass
 
-    @abstractmethod
-    def dumps(self):
-        # 将自身导出字符串
-        pass
-
 
 class BaseHttpCache(object):
     __metaclass__ = ABCMeta
