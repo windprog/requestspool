@@ -63,7 +63,6 @@ def get_mongodb_db(host, port, db_name, user=None, pw=None):
     return db
 
 
-GRIDFS_FIELD_UPLOADDATE = u'uploadDate'
 GRIDFS_FIELD_METADATA = u'metadata'
 GRIDFS_FIELD_FILEID = u'file_id'
 GRIDFS_FIELD_UPDATETIME = u'update_time'
@@ -141,7 +140,6 @@ class MongoGridfsCache(BaseHttpCache):
         # 解压缩
         res_data = dezip_compress(gf_item.read())
         return url_info, res_data
-
 
     def get_update_time(self, method, url, req_query_string, req_headers, req_data):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)
