@@ -16,9 +16,6 @@ from httplib import responses
 from requestspool.util import get_route
 
 
-
-
-
 def all_req(path_url, environ, start_response):
     method = environ.get('REQUEST_METHOD').upper()
 
@@ -89,3 +86,7 @@ def check(environ, start_response):
     ])
 
     return s
+
+@url("/", "GET")
+def index(environ, start_response):
+    return check(environ, start_response)
