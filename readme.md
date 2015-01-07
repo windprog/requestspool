@@ -47,9 +47,9 @@ httpappengine依赖gevent，先安装gevent依赖库：libevent
 
     python run.py
 
-访问
+执行测试
 
-    http://localhost:8801
+    python test.py
 
 
 #Done List
