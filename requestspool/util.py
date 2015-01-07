@@ -18,7 +18,12 @@ def get_route(path_url):
         from . import config
 
         # 从route模块中选择route对象
-        ROUTE_URL = [val for name, val in vars(import_module(config.ROUTE_MOD)).iteritems() if isinstance(val, BaseRoute)]
+        for name, val in vars(import_module(config.ROUTE_MOD)).iteritems():
+            if isinstance(val, list) and isinstance(val[0], BaseRoute):
+                ROUTE_URL = val
+                break
+        else:
+            raise ImportError(u'没有找到理由列表,请参考route_default.py')
         globals()['ROUTE_URL'] = ROUTE_URL
     else:
         ROUTE_URL = globals()['ROUTE_URL']
