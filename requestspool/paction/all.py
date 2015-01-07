@@ -9,11 +9,11 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   wsgi handler
 """
-from httpappengine.decorator import url
+from httpappengine import url, rest
 from httpappengine.helper import not_found
 from httplib import responses
 
-from requestspool.util import get_route
+from requestspool.util import get_route, get_all_routes
 
 
 def all_req(path_url, environ, start_response):
@@ -73,8 +73,15 @@ def route_add(environ, start_response):
 
 @url("/admin/route/all", "GET")
 def route_show_all(environ, start_response):
-    # 尚未实现
-    return not_found(start_response)
+    # TODO 尚未完成
+    result = {
+        "route": []
+    }
+    for route in get_all_routes():
+        r = {}
+
+        result['route'].append(r)
+    return rest(environ, start_response)
 
 
 @url("/check", "GET")

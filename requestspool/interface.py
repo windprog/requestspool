@@ -24,6 +24,7 @@ class BaseCheckCallback(object):
 
     @abstractmethod
     def __call__(self, method, url, req_query_string, req_headers, req_data, status_code, res_headers, res_data):
+        # 根据http请求结果判断
         pass
 
 
@@ -48,14 +49,17 @@ class BaseUpdate(object):
 
     @abstractmethod
     def backend_call(self, method, url, req_query_string, req_headers, req_data):
+        # 后台运行
         pass
 
     @abstractmethod
     def check_sync(self):
+        # 检测是否阻塞执行
         pass
 
     @abstractmethod
-    def get_expired_bool(self, method, url, req_query_string, req_headers, req_data, **kwargs):
+    def is_expired_incache(self, method, url, req_query_string, req_headers, req_data, **kwargs):
+        # 返回元组()  第一个为是否过期,第二个为是否在缓存中
         pass
 
 
@@ -64,6 +68,12 @@ class BaseRoute(object):
 
     @abstractmethod
     def match(self, url):
+        # 检测url是否满足本路由条件
+        pass
+
+    @abstractmethod
+    def dumps(self):
+        # 将自身导出字符串
         pass
 
 
@@ -72,18 +82,22 @@ class BaseHttpCache(object):
 
     @abstractmethod
     def find(self, method, url, req_query_string, req_headers, req_data):
+        # 获取换成你
         pass
 
     @abstractmethod
     def get_update_time(self, method, url, req_query_string, req_headers, req_data):
+        # 获取缓存上一次更新时间
         pass
 
     @abstractmethod
     def save(self, method, url, req_query_string, req_headers, req_data, status_code, res_headers, res_data):
+        # 保存缓存
         pass
 
     @abstractmethod
     def delete(self, method, url, req_query_string, req_headers, req_data):
+        # 删除缓存
         pass
 
 

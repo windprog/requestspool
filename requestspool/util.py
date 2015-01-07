@@ -12,7 +12,7 @@ Desc    :   方法集合
 from importlib import import_module
 
 
-def get_route(path_url):
+def get_all_routes():
     if 'ROUTE_URL' not in globals():
         from interface import BaseRoute
         from . import config
@@ -27,7 +27,11 @@ def get_route(path_url):
         globals()['ROUTE_URL'] = ROUTE_URL
     else:
         ROUTE_URL = globals()['ROUTE_URL']
+    return ROUTE_URL
 
+
+def get_route(path_url):
+    ROUTE_URL = get_all_routes()
     for route in ROUTE_URL:
         if route.match(path_url):
             return route

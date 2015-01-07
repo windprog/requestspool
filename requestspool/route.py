@@ -81,7 +81,7 @@ class SpeedRoute(BaseRoute):
         self._speed = speed
         if update:
             if not isinstance(update, BaseUpdate):
-                raise ValueError('speed must be BaseUpdate subclass instance')
+                raise ValueError('update must be BaseUpdate subclass instance')
         self._update = update
 
     def add_req(self):
@@ -149,7 +149,7 @@ class SpeedRoute(BaseRoute):
         if not self._update:
             # 没有缓存配置，不保存缓存
             return self.parse_nocache_res(*self.call_http_request(**kwargs))
-        is_expired, is_in_cache = self._update.get_expired_bool(**kwargs)
+        is_expired, is_in_cache = self._update.is_expired_incache(**kwargs)
         if is_in_cache:
             # 存在缓存
             # 外部控制
@@ -198,6 +198,7 @@ class RegexRoute(SpeedRoute):
         super(RegexRoute, self).__init__(_type=TYPE.REGEX, **kwargs)
         self._value = re.compile(pattern, flags=flags)
         self._pattern = pattern
+        self._flags = flags
 
     def match(self, url):
         return self._value.match(url)

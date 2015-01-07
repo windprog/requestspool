@@ -21,7 +21,7 @@ class Update(BaseUpdate):
     def check_sync(self):
         return self.is_sync
 
-    def get_expired_bool(self, **kwargs):
+    def is_expired_incache(self, **kwargs):
         # True为缓存过期
         update_time = self.get_update_time(**kwargs)
         is_expired = update_time and (datetime.datetime.now() - update_time).total_seconds() > self.expired
