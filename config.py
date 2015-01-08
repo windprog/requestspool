@@ -23,3 +23,6 @@ MONGODB_CACHE_COLL_NAME = 'cache'
 
 # route规则
 ROUTE_MOD = 'route_default'
+
+# 重新排序http query string
+RESORT_QUERY_STRING = True
