@@ -155,3 +155,8 @@ class CacheHttpTestCase(TestCase):
             self.assertTrue(r3.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)
             self.assertTrue(s3 < s1)
             self.assertTrue(s3.total_seconds() < 0.1)  # 取缓存时间小于0.1秒
+
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()
