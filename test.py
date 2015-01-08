@@ -27,6 +27,24 @@ def check():
     return 'Running' in requests.get(SERVICE_URI + 'check').text
 
 
+def statistics_baidu_req_time():
+    retry_count = 3
+
+    def get():
+        d1 = datetime.datetime.now()
+        r = requests.get(u'http://www.baidu.com')
+        d2 = datetime.datetime.now()
+        return d2-d1
+    bd_time = 0
+    for i in range(retry_count):
+        bd_time += get().total_seconds()
+    return bd_time/retry_count
+
+
+AvgBdReqTime = statistics_baidu_req_time()
+print 'statistics baidu request time: %s' % AvgBdReqTime
+
+
 class TestReqInfo(object):
     def __init__(self, method, url, req_query_string=None, req_headers=None, req_data=None):
         self.method, self.url, self.req_query_string, self.req_headers, self.req_data = \
@@ -61,6 +79,10 @@ class CacheClassTestCase(TestCase):
             self.assertTrue(id1!=id2)
 
 
+def get_max_cache_time():
+    return AvgBdReqTime if AvgBdReqTime > 0.1 else 0.1
+
+
 class CacheHttpTestCase(TestCase):
     def setUp(self):
         # 新的请求
@@ -89,24 +111,24 @@ class CacheHttpTestCase(TestCase):
 
     def check_cache_result(self, req_time, res):
         self.assertTrue(res.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)
-        self.assertTrue(req_time.total_seconds() < 0.1)  # 取缓存时间小于0.1秒
+        self.assertTrue(req_time.total_seconds() < get_max_cache_time())  # 取缓存时间小于 下载时间
 
     def test_incache(self):
         s1, r1 = self.count_time(self.req.req)
         s2, r2 = self.count_time(self.req.req)
         s3, r3 = self.count_time(self.req.req)
         s4, r4 = self.count_time(self.req.req)
+        print 'project get cache avg time: %s' % ((s2+s3+s4).total_seconds()/3)
         self.assertTrue(r1.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.NEW)
         self.assertTrue(s2 < s1)
         self.check_cache_result(s3, r3)
         self.check_cache_result(s4, r4)
-        print 'get avg cache time: %s' % ((s2+s3+s4).total_seconds()/3)
 
     def test_nocachre(self):
         s, r = self.count_time(self.req.req)
         self.assertTrue(r.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.NEW)
-        # 偶尔下载时间小于0.1也是可以接受的
-        self.assertTrue(s.total_seconds() > 0.1)
+        # 下载时间 大于 平均下载时间的一半
+        self.assertTrue(s.total_seconds() > AvgBdReqTime/2)
 
     def test_waittime(self):
         route = get_route(self.req.url)
@@ -119,6 +141,7 @@ class CacheHttpTestCase(TestCase):
             'req_headers': {
                 CACHE_CONTROL: CACHE_CONTROL_TYPE.SYNC
             }})
+        print 'waittime: %s' % (s2.total_seconds() + s1.total_seconds())
         self.assertTrue(s2.total_seconds() + s1.total_seconds() > count_time / 1000.0)
         # 访问百度的时间不超过3秒
         self.assertTrue(s2.total_seconds() + s1.total_seconds() < (count_time / 1000.0) + 3)
@@ -134,7 +157,7 @@ class CacheHttpTestCase(TestCase):
         self.assertTrue(r1.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.NEW)
         self.assertTrue(r2.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)
         self.assertTrue(s1 > s2)  # 下载时间大于取缓存时间
-        self.assertTrue(s2.total_seconds() < 0.1)  # 取缓存时间小于0.1秒
+        self.check_cache_result(s2, r2)  # 取缓存时间小于 下载时间
         # 测试is_sync
         # reset clock
         # 强制缓存过期
@@ -148,13 +171,12 @@ class CacheHttpTestCase(TestCase):
             # 需要下载
             self.assertTrue(s3 > s2)  # 下载时间大于取缓存时间
             self.assertTrue(s3.total_seconds() < 3)  # 下载时间小于3秒
-            # 偶尔下载时间小于0.1也是可以接受的
-            self.assertTrue(s3.total_seconds() > 0.1)  # 下载时间大于0.1秒
+            self.assertTrue(s3.total_seconds() > AvgBdReqTime/2)  # 下载时间 大于 平均下载时间的一半
         else:
             # 取缓存
             self.assertTrue(r3.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)
             self.assertTrue(s3 < s1)
-            self.assertTrue(s3.total_seconds() < 0.1)  # 取缓存时间小于0.1秒
+            self.check_cache_result(s3, r3)  # 取缓存时间小于 下载时间
 
 
 if __name__ == '__main__':
