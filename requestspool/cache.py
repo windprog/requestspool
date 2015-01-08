@@ -82,13 +82,17 @@ class MongoGridfsCache(BaseHttpCache):
         )
 
     def get_id(self, method, url, req_query_string, req_headers, req_data):
-        # 根据请求头hash 取样
-        # req_headers不存在或者它为字典
+        # 根据请求头hash 取样  req_headers是None or 字典
+        if config.RESORT_QUERY_STRING:
+            # 参数重新排序,让参数排序不一致的 url 获取一样的id
+            rqs_split = req_query_string.split(u'&')
+            rqs_split.sort()
+            req_query_string = u'&'.join(rqs_split)
         r_list = [method, url, req_query_string,
                   # TODO request headers 暂不参与缓存id计算 | 注释内容为：将dict key value 直接连接起来
                   # "".join([key + str(val) for key, val in req_headers.iteritems()]) if req_headers else '',
                   req_data if req_data else '']
-        return hashlib.sha224("".join(r_list)).hexdigest()
+        return hashlib.sha224(u"".join(r_list)).hexdigest()
 
     def delete(self, method, url, req_query_string, req_headers, req_data):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)

@@ -14,7 +14,7 @@ import requests
 import datetime
 import time
 
-import config
+from requestspool import config
 from requestspool.cache import cache, CACHE_RESULT, CACHE_RESULT_TYPE, CACHE_CONTROL, CACHE_CONTROL_TYPE
 from requestspool.http import call_http_request
 from requestspool.util import get_route
@@ -51,7 +51,17 @@ class TestReqInfo(object):
         return call_http_request(**req_dict)
 
 
-class CacheTestCase(TestCase):
+class CacheClassTestCase(TestCase):
+    def test_get_id(self):
+        id1 = cache.get_id(u'GET', u'http://www.baidu.com', u'c=1&b=3&d=1&a=9', {}, '')
+        id2 = cache.get_id(u'GET', u'http://www.baidu.com', u'a=9&c=1&b=3&d=1', {}, '')
+        if config.RESORT_QUERY_STRING:
+            self.assertTrue(id1==id2)
+        else:
+            self.assertTrue(id1!=id2)
+
+
+class CacheHttpTestCase(TestCase):
     def setUp(self):
         # 新的请求
         self.req = TestReqInfo(
