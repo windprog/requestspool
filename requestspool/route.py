@@ -67,6 +67,7 @@ class Speed(BaseSpeed):
                 gevent.sleep((self.count_time - (now - self._last_count_time.value) * ONESECOND) / ONESECOND)
                 self._reset_clock()
             elif self.check_over_time(now):
+                # 长时间未访问
                 self._reset_clock()
             self._one_clock_req.value += 1
 
@@ -174,7 +175,6 @@ class SpeedRoute(BaseRoute):
                     return self.parse_cache_res(*cache.find(**kwargs))
                 else:
                     # 同步获取
-                    print 'success'
                     return self.parse_nocache_res(*self.call_http_request(**kwargs))
             else:
                 # 在缓存周期内，不发起http 请求，直接取缓存。
