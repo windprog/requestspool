@@ -10,6 +10,7 @@ Date    :   15/1/6
 Desc    :   
 """
 from importlib import import_module
+import os
 
 DEBUG = True
 
@@ -30,6 +31,13 @@ ROUTE_MOD = 'route_default'
 
 # 重新排序http query string 例如 c=1&b=3&d=1&a=9 参数和 a=9&c=1&b=3&d=1 参数是等效的.
 RESORT_QUERY_STRING = True
+
+# 运行临时文件
+STUFF_PATH = os.path.join(os.path.realpath(os.path.dirname(__file__)), '..', 'stuff')
+STUFF_LOG_PATH = os.path.join(STUFF_PATH, 'logs')
+for path in (STUFF_PATH, STUFF_LOG_PATH,):
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 # 载入项目根目录的配置文件
 for name, val in vars(import_module('config')).iteritems():

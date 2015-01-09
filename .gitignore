@@ -55,6 +55,7 @@ target/
 
 # Project stuff
 .idea/
+stuff/
 
 # Project product env
 *product.py

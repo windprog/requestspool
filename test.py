@@ -130,22 +130,6 @@ class CacheHttpTestCase(TestCase):
         # 下载时间 大于 平均下载时间的一半
         self.assertTrue(s.total_seconds() > AvgBdReqTime/2)
 
-    def test_waittime(self):
-        route = get_route(self.req.url)
-        count_time, limit_req = route._speed.count_time, route._speed.limit_req
-        # 强制检测limit为1
-        self.assertTrue(limit_req == 1)
-        s1, r1 = self.count_time(self.req.req)
-        # 强制获取新数据
-        s2, r2 = self.count_time(self.req.req, kwargs={
-            'req_headers': {
-                CACHE_CONTROL: CACHE_CONTROL_TYPE.SYNC
-            }})
-        print 'waittime: %s' % (s2.total_seconds() + s1.total_seconds())
-        self.assertTrue(s2.total_seconds() + s1.total_seconds() > count_time / 1000.0)
-        # 访问百度的时间不超过3秒
-        self.assertTrue(s2.total_seconds() + s1.total_seconds() < (count_time / 1000.0) + 3)
-
     '''
         过程为: 新的下载--取缓存--新的下载(or后台下载取缓存)
     '''
@@ -177,6 +161,22 @@ class CacheHttpTestCase(TestCase):
             self.assertTrue(r3.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)
             self.assertTrue(s3 < s1)
             self.check_cache_result(s3, r3)  # 取缓存时间小于 下载时间
+
+    def test_waittime(self):
+        route = get_route(self.req.url)
+        count_time, limit_req = route._speed.count_time, route._speed.limit_req
+        # 强制检测limit为1
+        self.assertTrue(limit_req == 1)
+        s1, r1 = self.count_time(self.req.req)
+        # 强制获取新数据
+        s2, r2 = self.count_time(self.req.req, kwargs={
+            'req_headers': {
+                CACHE_CONTROL: CACHE_CONTROL_TYPE.SYNC
+            }})
+        print 'waittime: %s' % (s2.total_seconds() + s1.total_seconds())
+        self.assertTrue(s2.total_seconds() + s1.total_seconds() > count_time / 1000.0)
+        # 访问百度的时间不超过3秒
+        self.assertTrue(s2.total_seconds() + s1.total_seconds() < (count_time / 1000.0) + 3)
 
 
 if __name__ == '__main__':

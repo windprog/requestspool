@@ -24,7 +24,7 @@ import gevent
 import multiprocessing
 
 from interface import BaseRoute, BaseSpeed, BaseUpdate
-from http import get_http_result, HttpInfo
+from http import get_http_result
 from cache import cache, CACHE_CONTROL, CACHE_CONTROL_TYPE, CACHE_RESULT, CACHE_RESULT_TYPE
 
 
@@ -38,6 +38,21 @@ class TYPE():
 
 class Speed(BaseSpeed):
     # 速度控制器
+
+    # -----------------getter setter----------------- #
+    def get_last_count_time(self):
+        return self._last_count_time.value
+
+    def set_last_count_time(self, value):
+        self._last_count_time.value = value
+
+    def get_one_clock_req(self):
+        return self._one_clock_req.value
+
+    def set_one_clock_req(self, value):
+        self._one_clock_req.value = value
+    # ----------------------------------------------- #
+
     def __init__(self, limit_req, count_time=ONESECOND):
         # 单位时钟时间，默认1秒，单位毫秒
         self.count_time = count_time
@@ -48,28 +63,31 @@ class Speed(BaseSpeed):
         self._one_clock_req = multiprocessing.Value('I', 0)
         self._lock = multiprocessing.Lock()
 
+    last_count_time = property(get_last_count_time, set_last_count_time)
+    one_clock_req = property(get_one_clock_req, set_one_clock_req)
+
     def _reset_clock(self):
-        self._last_count_time.value = time.time()
-        self._one_clock_req.value = 0
+        self.last_count_time = time.time()
+        self.one_clock_req = 0
 
     def check_reset(self, now_time):
-        return self._one_clock_req.value >= self.limit_req and \
-               (now_time - self._last_count_time.value) * ONESECOND < self.count_time
+        return self.one_clock_req >= self.limit_req and \
+               (now_time - self.last_count_time) * ONESECOND < self.count_time
 
     def check_over_time(self, now_time):
-        return (now_time - self._last_count_time.value) * ONESECOND > self.count_time
+        return (now_time - self.last_count_time) * ONESECOND > self.count_time
 
     def add_one(self):
         with self._lock:
             now = time.time()
             if self.check_reset(now):
                 # 当前请求数超过 每个时钟周期 允许的请求数
-                gevent.sleep((self.count_time - (now - self._last_count_time.value) * ONESECOND) / ONESECOND)
+                gevent.sleep((self.count_time - (now - self.last_count_time) * ONESECOND) / ONESECOND)
                 self._reset_clock()
             elif self.check_over_time(now):
                 # 长时间未访问
                 self._reset_clock()
-            self._one_clock_req.value += 1
+            self.one_clock_req += 1
 
 
 class SpeedRoute(BaseRoute):
@@ -145,6 +163,7 @@ class SpeedRoute(BaseRoute):
     '''
         requestpool_headers : 项目控制所需的header,当出现在这里时不会出现在普通request headers
     '''
+
     def http_result(self, requestpool_headers=None, **kwargs):
         # 判断缓存条件
         if not self._update:
