@@ -9,11 +9,13 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   wsgi handler
 """
-from httpappengine import url, rest
-from httpappengine.helper import not_found
+from httpappengine import url
 from httplib import responses
 
 from requestspool.util import get_route, get_all_routes
+
+# 载入route
+get_all_routes()
 
 
 def all_req(path_url, environ, start_response):
@@ -53,7 +55,6 @@ def all_req(path_url, environ, start_response):
     return output
 
 
-
 @url("/http://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def http_req(path_url, environ, start_response):
     # return all_req(u'http://'+path_url, environ, start_response)
@@ -63,41 +64,3 @@ def http_req(path_url, environ, start_response):
 @url("/https://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def https_req(path_url, environ, start_response):
     return all_req(u'https://'+path_url, environ, start_response)
-
-
-@url("/admin/route/add", "POST")
-def route_add(environ, start_response):
-    # 尚未实现
-    return not_found(start_response)
-
-
-@url("/admin/route/all", "GET")
-def route_show_all(environ, start_response):
-    # TODO 尚未完成
-    result = {
-        "route": []
-    }
-    for route in get_all_routes():
-        r = {}
-
-        result['route'].append(r)
-    return rest(environ, start_response)
-
-
-@url("/check", "GET")
-def check(environ, start_response):
-    # 检测get_route
-    get_route('http://test')
-    s = "Running!\n"
-
-    start_response("200 OK", [
-        ("Content-Type", "text/plain"),
-        ("Content-Length", str(len(s)))
-    ])
-
-    return s
-
-
-@url("/", "GET")
-def index(environ, start_response):
-    return check(environ, start_response)
