@@ -45,22 +45,24 @@ def all_req(path_url, environ, start_response):
                 req_headers[header_name] = val
 
     route = get_route(path_url)
-    status_code, headers, output = route.http_result(requestpool_headers=requestpool_headers,
-                                                         url=path_url, method=method, req_query_string=req_query_string,
-                                                         req_data=req_data, req_headers=req_headers)
+    return route.http_result(requestpool_headers=requestpool_headers,
+                             url=path_url, method=method, req_query_string=req_query_string,
+                             req_data=req_data, req_headers=req_headers)
 
+
+def show_response(status_code, headers, output, start_response):
     start_response(
         "{0} {1}".format(status_code, responses.get(status_code, 'OK')),
         headers.items())
     return output
 
-
 @url("/http://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def http_req(path_url, environ, start_response):
-    # return all_req(u'http://'+path_url, environ, start_response)
-    return all_req(u'http://'+path_url, environ, start_response)
+    status_code, headers, output = all_req(u'http://'+path_url, environ, start_response)
+    return show_response(status_code, headers, output, start_response)
 
 
 @url("/https://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def https_req(path_url, environ, start_response):
-    return all_req(u'https://'+path_url, environ, start_response)
+    status_code, headers, output = all_req(u'https://'+path_url, environ, start_response)
+    return show_response(status_code, headers, output, start_response)

@@ -18,6 +18,9 @@ from wsgiref.util import is_hop_by_hop
 import config
 
 
+'''
+    httplib版本:https://github.com/whitmo/WSGIProxy/blob/master/wsgiproxy/exactproxy.py:proxy_exact_request
+'''
 def call_http_request(url, method, req_headers=None, req_data=None, req_query_string=None, **kwargs):
     if config.DEBUG:
         from requests.models import RequestEncodingMixin
@@ -72,14 +75,7 @@ def parse_requests_result(result):
         elif key.lower() == 'content-encoding' and 'zip' in val:
             headers.pop(key)
     status_code = result.status_code
-    text = result.text
-    content_type = headers.get('Content-Type')
-    content_type_list = content_type.split(';')
-    if len(content_type_list) >= 2:
-        content_type_list[1] = ' charset=utf-8'
-    headers['Content-Type'.lower()] = str(';'.join(content_type_list))
-    output = text.encode('utf-8')
-    headers['Content-Length'.lower()] = str(len(output))
+    output = result.content
     # 重新排序header，保持与缓存返回的一致性
     headers = HttpInfo.sort_headers(headers)
     return status_code, headers, output
