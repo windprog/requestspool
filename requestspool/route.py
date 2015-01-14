@@ -150,13 +150,13 @@ class SpeedRoute(BaseRoute):
 
     @staticmethod
     def parse_nocache_res(status_code, res_headers, res_data):
-        if isinstance(res_headers, dict):
+        if hasattr(res_headers, "__setitem__"):
             res_headers[CACHE_RESULT] = CACHE_RESULT_TYPE.NEW
         return status_code, res_headers, res_data
 
     @staticmethod
     def parse_cache_res(url_info, res_data):
-        if isinstance(url_info.res_headers, dict):
+        if hasattr(url_info.res_headers, "__setitem__"):
             url_info.res_headers[CACHE_RESULT] = CACHE_RESULT_TYPE.OLD
         return url_info.status_code, url_info.res_headers, res_data
 

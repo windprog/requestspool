@@ -14,6 +14,7 @@ import base64
 import pickle
 from collections import OrderedDict
 from wsgiref.util import is_hop_by_hop
+from requests.structures import CaseInsensitiveDict
 
 import config
 
@@ -40,13 +41,14 @@ class HttpInfo(object):
         # query string | 在url '?'后面跟着的
         self.req_query_string = req_query_string
         # request headers | 请求头
-        self.req_headers = self.sort_headers(req_headers)
+        self.req_headers = req_headers
         # request data | http请求 data
         self.req_data = req_data
         # http status code | http 状态码
         self.status_code = status_code
         # http respond headers | 返回头
-        self.res_headers = self.sort_headers(res_headers)
+        self.res_headers = res_headers if isinstance(res_headers, CaseInsensitiveDict) \
+            else CaseInsensitiveDict(res_headers)
 
     def dumps(self):
         # 序列化
@@ -76,8 +78,9 @@ def parse_requests_result(result):
             headers.pop(key)
     status_code = result.status_code
     output = result.content
-    # 重新排序header，保持与缓存返回的一致性
-    headers = HttpInfo.sort_headers(headers)
+    if 'Content-Length' in headers:
+        # 让wsgi模块自行计算解压之后的字节大小
+        headers.pop('Content-Length')
     return status_code, headers, output
 
 

@@ -89,8 +89,9 @@ class MongoGridfsCache(BaseHttpCache):
             rqs_split.sort()
             req_query_string = u'&'.join(rqs_split)
         r_list = [method, url, req_query_string,
-                  # TODO request headers 暂不参与缓存id计算 | 注释内容为：将dict key value 直接连接起来
-                  # "".join([key + str(val) for key, val in req_headers.iteritems()]) if req_headers else '',
+                  # TODO request headers 暂不参与缓存id计算 | 注释内容为：排序之后将dict key value 直接连接起来
+                  # "".join([key + str(val) for key, val in
+                  #          HttpInfo.sort_headers(req_headers).iteritems()]) if req_headers else '',
                   req_data if req_data else '']
         return hashlib.sha224(u"".join(r_list)).hexdigest()
 

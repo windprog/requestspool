@@ -74,9 +74,9 @@ class CacheClassTestCase(TestCase):
         id1 = cache.get_id(u'GET', u'http://www.baidu.com', u'c=1&b=3&d=1&a=9', {}, '')
         id2 = cache.get_id(u'GET', u'http://www.baidu.com', u'a=9&c=1&b=3&d=1', {}, '')
         if config.RESORT_QUERY_STRING:
-            self.assertTrue(id1==id2)
+            self.assertTrue(id1 == id2)
         else:
-            self.assertTrue(id1!=id2)
+            self.assertTrue(id1 != id2)
 
 
 def get_max_cache_time():
@@ -127,8 +127,8 @@ class CacheHttpTestCase(TestCase):
     def test_nocachre(self):
         s, r = self.count_time(self.req.req)
         self.assertTrue(r.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.NEW)
-        # 下载时间 大于 平均下载时间的一半
-        self.assertTrue(s.total_seconds() > AvgBdReqTime/2)
+        # 下载时间 大于 平均下载时间的四分之一
+        self.assertTrue(s.total_seconds() > AvgBdReqTime/4)
 
     '''
         过程为: 新的下载--取缓存--新的下载(or后台下载取缓存)
@@ -155,7 +155,7 @@ class CacheHttpTestCase(TestCase):
             # 需要下载
             self.assertTrue(s3 > s2)  # 下载时间大于取缓存时间
             self.assertTrue(s3.total_seconds() < 3)  # 下载时间小于3秒
-            self.assertTrue(s3.total_seconds() > AvgBdReqTime/2)  # 下载时间 大于 平均下载时间的一半
+            self.assertTrue(s3.total_seconds() > AvgBdReqTime/4)  # 下载时间 大于 平均下载时间的四分之一
         else:
             # 取缓存
             self.assertTrue(r3.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)

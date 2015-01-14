@@ -31,7 +31,8 @@ class BaseCheckCallback(object):
 class BaseUpdate(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, expired, is_sync, save_check_callback=None, retry_limit=1, retry_check_callback=None):
+    def __init__(self, expired, is_sync, save_check_callback=None, retry_limit=1, retry_check_callback=None,
+                 requests_timeout=30):
         # 缓存过期时间，单位秒
         self.expired = expired
         # 过期时获取的动作，True为等待最新数据完成才返回
@@ -42,6 +43,8 @@ class BaseUpdate(object):
         self.retry_check_callback = retry_check_callback
         # 重试次数，默认为1
         self.retry_limit = 1
+        # 请求超时
+        self.requests_timeout = requests_timeout
 
         for callback in [save_check_callback, retry_check_callback]:
             if callback and not isinstance(callback, BaseCheckCallback):
