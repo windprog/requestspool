@@ -27,11 +27,16 @@ class BaseCheckCallback(object):
         # 根据http请求结果判断
         pass
 
+    @staticmethod
+    def sleep(seconds=0):
+        import gevent
+        gevent.sleep(seconds)
+
 
 class BaseUpdate(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self, expired, is_sync, save_check_callback=None, retry_limit=1, retry_check_callback=None,
+    def __init__(self, expired=0, is_sync=True, save_check_callback=None, retry_limit=1, retry_check_callback=None,
                  requests_timeout=30):
         # 缓存过期时间，单位秒
         self.expired = expired
@@ -80,7 +85,12 @@ class BaseHttpCache(object):
 
     @abstractmethod
     def find(self, method, url, req_query_string, req_headers, req_data):
-        # 获取换成你
+        # 返回HttpInfo对象和res_data
+        pass
+
+    @abstractmethod
+    def find_httpinfo(self, method, url, req_query_string, req_headers, req_data):
+        # 返回HttpInfo对象
         pass
 
     @abstractmethod

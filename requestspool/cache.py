@@ -68,6 +68,7 @@ GRIDFS_FIELD_FILEID = u'file_id'
 GRIDFS_FIELD_UPDATETIME = u'update_time'
 GRIDFS_FIELD_CREATETIME = u'create_time'
 GRIDFS_COLL_FILEINFO = u'%s.info' % config.MONGODB_CACHE_COLL_NAME
+GRIDFS_COLL_FILES = u'%s.files' % config.MONGODB_CACHE_COLL_NAME
 
 
 class MongoGridfsCache(BaseHttpCache):
@@ -76,6 +77,7 @@ class MongoGridfsCache(BaseHttpCache):
                                             db_name=config.MONGODB_DB_NAME,
                                             user=config.MONGODB_USER, pw=config.MONGODB_PW)
         self.file_info_coll = self.cache_mongodb[GRIDFS_COLL_FILEINFO]
+        self.file_files_coll = self.cache_mongodb[GRIDFS_COLL_FILES]
         self.gridfs = GridFS(
             self.cache_mongodb,
             config.MONGODB_CACHE_COLL_NAME
@@ -128,6 +130,13 @@ class MongoGridfsCache(BaseHttpCache):
             save_dict.update({"_id": _id, GRIDFS_FIELD_CREATETIME: now, "url": url})
             self.file_info_coll.save(save_dict)
 
+    def find_httpinfo(self, method, url, req_query_string, req_headers, req_data, **kwargs):
+        _id = self.get_id(method, url, req_query_string, req_headers, req_data)
+        r = self.file_files_coll.find_one({'_id': _id}, fields=[GRIDFS_FIELD_METADATA])
+        if r:
+            metadata = r.get(GRIDFS_FIELD_METADATA)
+            return HttpInfo.loads(metadata) if isinstance(metadata, basestring) else None
+
     def find(self, method, url, req_query_string, req_headers, req_data, **kwargs):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)
         doc = self.file_info_coll.find_one({'_id': _id}, fields=[GRIDFS_FIELD_FILEID])
@@ -138,7 +147,7 @@ class MongoGridfsCache(BaseHttpCache):
         except NoFile, e:
             return None, None
         url_info = getattr(gf_item, GRIDFS_FIELD_METADATA, None)
-        if isinstance(url_info, str) or isinstance(url_info, unicode):
+        if isinstance(url_info, basestring):
             url_info = HttpInfo.loads(url_info)
         else:
             url_info = None
