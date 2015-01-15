@@ -3,7 +3,7 @@
 
 ##描述
 
-    RequestsPool 是一个http请求转发代理,带有请求限速,缓存过期,外部缓存控制等功能的wsgi服务器.
+    RequestsPool 是一个带有http请求转发,带有请求限速,缓存过期,外部缓存控制等功能的http管理工具.
 
 ##功能特点
 * 请求限速: 例如:访问百度每10秒1次,就可以在在[示例配置](https://github.com/windprog/requestspool/blob/master/route_default.py)中的speed,配置如下:Speed(count_time=10000, limit_req=1)即可限速
@@ -35,7 +35,7 @@ httpappengine依赖gevent，先安装gevent依赖库：libevent
     cd env
     # 激活虚拟环境
     source bin/activate
-    # 安装依赖包
+    # 安装依赖包(其中的lxml用于http代理,不影响程序正常逻辑)
     pip install -r ../requirements.txt
 
 进入项目目录
