@@ -62,3 +62,4 @@ httpappengine依赖gevent，先安装gevent依赖库：libevent
 * 基于flask格式的路由
 * 基于websocket的广播(通知下载完成等)与异地同步
 * 远程获取配置信息
+* 整理数据库,写入缓存处理的版本号

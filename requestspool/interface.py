@@ -109,3 +109,17 @@ class BaseHttpCache(object):
         pass
 
 
+class BaseHttpInfo(object):
+    __metaclass__ = ABCMeta
+
+    @staticmethod
+    def get_id(method, url, req_query_string, req_headers, req_data):
+        pass
+
+    @staticmethod
+    def loads(_str):
+        pass
+
+    @abstractmethod
+    def dumps(self):
+        pass

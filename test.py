@@ -66,7 +66,12 @@ class TestReqInfo(object):
         )
         if kwargs:
             req_dict.update(kwargs)
-        return call_http_request(**req_dict)
+        result = call_http_request(**req_dict)
+        assert CACHE_RESULT in result.headers
+        # 检查缓存是否存在
+        assert cache.find_httpinfo(self.method, self.url, self.req_query_string,
+                                   self.req_headers, self.req_data)
+        return result
 
 
 class CacheClassTestCase(TestCase):
