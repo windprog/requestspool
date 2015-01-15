@@ -22,6 +22,7 @@ import re
 import time
 import gevent
 import multiprocessing
+from requests import exceptions
 
 from interface import BaseRoute, BaseSpeed, BaseUpdate
 from http import get_http_result
@@ -29,6 +30,7 @@ from cache import cache, CACHE_CONTROL, CACHE_CONTROL_TYPE, CACHE_RESULT, CACHE_
 
 
 ONESECOND = 1000.0
+TIMEOUT_STATUS_CODE = -1
 
 
 class TYPE():
@@ -51,6 +53,7 @@ class Speed(BaseSpeed):
 
     def set_one_clock_req(self, value):
         self._one_clock_req.value = value
+
     # ----------------------------------------------- #
 
     def __init__(self, limit_req, count_time=ONESECOND):
@@ -114,30 +117,40 @@ class SpeedRoute(BaseRoute):
         # 发起http请求
         self.add_req()
         # 发起http request
-        status_code, res_headers, output = get_http_result(url=url, method=method, req_headers=req_headers,
-                                                           req_data=req_data, req_query_string=req_query_string,
-                                                           **kwargs)
+        try:
+            status_code, res_headers, output = get_http_result(url=url, method=method, req_headers=req_headers,
+                                                               req_data=req_data, req_query_string=req_query_string,
+                                                               **kwargs)
+        except exceptions.Timeout, e:
+            status_code, res_headers, output = TIMEOUT_STATUS_CODE, {}, ""
         self.finish_req()
         return status_code, res_headers, output
 
     def call_http_request(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
         # 失败重试
         # 储存符合的结果到缓存中
-        status_code, res_headers, output = self._get_http_result(url=url, method=method, req_headers=req_headers,
-                                                                 req_data=req_data, req_query_string=req_query_string,
-                                                                 **kwargs)
+        status_code, res_headers, output = self._get_http_result(
+            url=url, method=method, req_headers=req_headers, req_data=req_data, req_query_string=req_query_string,
+            timeout=self._update.requests_timeout if self._update else None,  # 设置请求超时
+            **kwargs)
         if self._update:
             save_dict = dict(method=method, url=url, req_query_string=req_query_string, req_headers=req_headers,
                              req_data=req_data, status_code=status_code, res_headers=res_headers, res_data=output)
-            if self._update.retry_check_callback and self._update.retry_check_callback(**save_dict):
+            # status_code == TIMEOUT_STATUS_CODE 请求超时
+            if self._update.retry_check_callback and \
+                    (status_code == TIMEOUT_STATUS_CODE or self._update.retry_check_callback(**save_dict)):
                 # 符合重试条件
                 for retry_count in xrange(self._update.retry_limit):
                     # 重新发起连接
-                    status_code, res_headers, output = self._get_http_result(url=url, method=method,
-                                                                             req_headers=req_headers, req_data=req_data,
-                                                                             req_query_string=req_query_string,
-                                                                             **kwargs)
+                    status_code, res_headers, output = self._get_http_result(
+                        url=url, method=method, req_headers=req_headers,
+                        req_data=req_data, req_query_string=req_query_string,
+                        timeout=self._update.requests_timeout if self._update else None,  # 设置请求超时
+                        **kwargs)
                     save_dict.update(dict(status_code=status_code, res_headers=res_headers, res_data=output))
+                    if status_code == TIMEOUT_STATUS_CODE:
+                        # 继续重试
+                        continue
                     if not self._update.retry_check_callback(**save_dict):
                         # 不再需要重试
                         break

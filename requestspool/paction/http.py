@@ -13,6 +13,7 @@ from httpappengine import url
 from httplib import responses
 
 from requestspool.util import get_route, get_all_routes
+from requestspool.route import TIMEOUT_STATUS_CODE
 
 # 载入route
 get_all_routes()
@@ -50,7 +51,21 @@ def all_req(path_url, environ, start_response):
                              req_data=req_data, req_headers=req_headers)
 
 
+def requests_timeout(start_response):
+    from httplib import INTERNAL_SERVER_ERROR
+    s = "requests timeout!"
+
+    start_response("{0} Internal Server Error".format(INTERNAL_SERVER_ERROR), [
+        ("Content-Type", "text/plain"),
+        ("Content-Length", str(len(s)))
+    ])
+
+    return s
+
+
 def show_response(status_code, headers, output, start_response):
+    if status_code == TIMEOUT_STATUS_CODE:
+        return requests_timeout(start_response)
     start_response(
         "{0} {1}".format(status_code, responses.get(status_code, 'OK')),
         headers.items())
