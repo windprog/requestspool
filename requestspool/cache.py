@@ -11,8 +11,9 @@ Desc    :   缓存,具体实现需要继承interface.BaseHttpCache
 """
 from gridfs import GridFS
 from gridfs.grid_file import NoFile
-from pymongo import Connection
+from pymongo import MongoClient
 import datetime
+from gevent.lock import BoundedSemaphore
 
 from . import config
 from http import HttpInfo, get_HttpInfo_class
@@ -42,7 +43,7 @@ class CACHE_RESULT_TYPE(object):
 def get_mongodb_con(host, port):
     model_name = "mongodb_%s_%s" % (host, port)
     if model_name not in globals():
-        db_con = Connection(host=host, port=port)
+        db_con = MongoClient(host=host, port=port)
         globals()[model_name] = db_con
     else:
         db_con = globals()[model_name]
@@ -74,6 +75,32 @@ GRIDFS_COLL_FILEINFO = u'%s.info' % config.MONGODB_CACHE_COLL_NAME
 GRIDFS_COLL_FILES = u'%s.files' % config.MONGODB_CACHE_COLL_NAME
 
 
+db_sem = BoundedSemaphore(15)
+
+
+def db_wrapper(func):
+    def wrapper(*args, **kwargs):
+        with db_sem:
+            return func(*args, **kwargs)
+    return wrapper
+
+
+def db_wrapper_num(num):
+    db_sem = BoundedSemaphore(num)
+
+    def db_wrapper(func):
+        def wrapper(*args, **kwargs):
+            print id(db_sem)
+            try:
+                with db_sem:
+                    return func(*args, **kwargs)
+            except:
+                print "gevent框架错误, 使用无锁调用"
+                return func(*args, **kwargs)
+        return wrapper
+    return db_wrapper
+
+
 class MongoGridfsCache(BaseHttpCache):
     def __init__(self):
         self.cache_mongodb = get_mongodb_db(host=config.MONGODB_HOST, port=config.MONGODB_PORT,
@@ -83,16 +110,14 @@ class MongoGridfsCache(BaseHttpCache):
         self.file_info_coll = self.cache_mongodb[GRIDFS_COLL_FILEINFO]
         # gridfs自带,内有checksum等信息
         self.file_files_coll = self.cache_mongodb[GRIDFS_COLL_FILES]
-        self.gridfs = GridFS(
-            self.cache_mongodb,
-            config.MONGODB_CACHE_COLL_NAME
-        )
+        self.gridfs = GridFS(self.cache_mongodb, config.MONGODB_CACHE_COLL_NAME)
 
     @staticmethod
-    def get_id(method, url, req_query_string, req_headers, req_data):
+    def get_id(method, url, req_query_string, req_headers, req_data, **kwargs):
         # 默认获取id方式
         return default_get_id(method, url, req_query_string, req_headers, req_data)
 
+    @db_wrapper
     def delete(self, method, url, req_query_string, req_headers, req_data):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)
         old = self.file_info_coll.find_one({"_id": _id})
@@ -103,6 +128,8 @@ class MongoGridfsCache(BaseHttpCache):
             return True
         return False
 
+    # 防止数据过快保存冲突
+    @db_wrapper
     def save(self, method, url, req_query_string, req_headers, req_data, status_code, res_headers, res_data):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)
         file_id = self.gridfs.put(
@@ -127,10 +154,10 @@ class MongoGridfsCache(BaseHttpCache):
             save_dict.update({"_id": _id, GRIDFS_FIELD_CREATETIME: now, "url": url})
             self.file_info_coll.save(save_dict)
 
-    def find_httpinfo(self, method, url, req_query_string, req_headers, req_data, **kwargs):
-        _id = self.get_id(method, url, req_query_string, req_headers, req_data)
-        # 检查数据是否存在,拿到httpinfo version
+    @db_wrapper
+    def find_httpinfo(self, _id):
         doc = self.file_info_coll.find_one({'_id': _id}, fields=[GRIDFS_FIELD_FILEID, GRIDFS_FIELD_HTTPINFO_VERSION])
+        # 检查数据是否存在,拿到httpinfo version
         if doc:
             # 获取metadata
             r = self.file_files_coll.find_one({'_id': doc.get(GRIDFS_FIELD_FILEID)}, fields=[GRIDFS_FIELD_METADATA])
@@ -140,6 +167,7 @@ class MongoGridfsCache(BaseHttpCache):
                 return get_HttpInfo_class(version).loads(metadata) if isinstance(metadata, basestring) else None
             return HttpInfo.loads(metadata) if isinstance(metadata, basestring) else None
 
+    @db_wrapper
     def find(self, method, url, req_query_string, req_headers, req_data, **kwargs):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)
         doc = self.file_info_coll.find_one({'_id': _id}, fields=[GRIDFS_FIELD_FILEID, GRIDFS_FIELD_HTTPINFO_VERSION])
@@ -159,6 +187,7 @@ class MongoGridfsCache(BaseHttpCache):
         res_data = dezip_compress(gf_item.read())
         return url_info, res_data
 
+    @db_wrapper
     def get_update_time(self, method, url, req_query_string, req_headers, req_data):
         _id = self.get_id(method, url, req_query_string, req_headers, req_data)
         doc = self.file_info_coll.find_one({'_id': _id}, fields=[GRIDFS_FIELD_UPDATETIME])
@@ -169,3 +198,6 @@ if 'CACHE_TYPE' in vars(config) and config.CACHE_TYPE == 'mongodbgridfs':
     cache = MongoGridfsCache()
 else:
     raise ValueError(u'尚未配置Cache，请检查config.CACHE_TYPE和相关配置项')
+
+# id长度
+cache.ID_LENGTH = len(cache.get_id("", "", req_query_string="", req_headers={}, req_data=""))

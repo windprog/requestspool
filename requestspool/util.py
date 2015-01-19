@@ -35,3 +35,16 @@ def get_route(path_url):
     for route in ROUTE_URL:
         if route.match(path_url):
             return route
+
+
+def backend_call(callback, **kwargs):
+    import gevent
+    import config
+    if not config.DEBUG:
+        return gevent.spawn(callback, **kwargs)
+    else:
+        import threading
+
+        t = threading.Thread(target=callback, kwargs=kwargs)
+        t.start()
+        return t

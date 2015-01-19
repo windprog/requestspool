@@ -42,6 +42,12 @@ RESORT_QUERY_STRING = True
 # 默认缓存http计算类,存放地是httpinfo.py
 DEFAULT_HTTPINFO_VERSION = "1"
 
+# 默认后台下载队列长度,超出的话抛弃或者打入日志
+BACKEND_RUNNER_COUNT = 1000
+
+# 最大同步锁数量
+MAX_LOCK_NUM = 500
+
 # 运行临时文件
 STUFF_PATH = os.path.join(os.path.realpath(os.path.dirname(__file__)), '..', 'stuff')
 STUFF_LOG_PATH = os.path.join(STUFF_PATH, 'logs')
@@ -62,3 +68,7 @@ for name, val in vars(import_module('config')).iteritems():
 ACTIONS = [
     "requestspool.paction",
 ]
+
+# 使用单进程模式
+WORKERS = 1
+# ENGINE = "werkzeug"

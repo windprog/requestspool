@@ -9,6 +9,8 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   
 """
+from gevent import monkey
+monkey.patch_all()
 import os
 from httpappengine.util import run_server
 

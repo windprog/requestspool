@@ -9,6 +9,7 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   接口调用规范。
 """
+from requests.structures import CaseInsensitiveDict
 from abc import ABCMeta, abstractmethod
 
 
@@ -37,7 +38,7 @@ class BaseUpdate(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, expired=0, is_sync=True, save_check_callback=None, retry_limit=1, retry_check_callback=None,
-                 requests_timeout=30):
+                 requests_timeout=None):
         # 缓存过期时间，单位秒
         self.expired = expired
         # 过期时获取的动作，True为等待最新数据完成才返回
@@ -54,11 +55,6 @@ class BaseUpdate(object):
         for callback in [save_check_callback, retry_check_callback]:
             if callback and not isinstance(callback, BaseCheckCallback):
                 raise ValueError('%s must be BaseCheckCallback subclass instance' % callback.__name__)
-
-    @abstractmethod
-    def backend_call(self, method, url, req_query_string, req_headers, req_data):
-        # 后台运行
-        pass
 
     @abstractmethod
     def check_sync(self):
@@ -82,6 +78,12 @@ class BaseRoute(object):
 
 class BaseHttpCache(object):
     __metaclass__ = ABCMeta
+    # id字符串长度
+    ID_LENGTH = 56
+
+    @staticmethod
+    def get_id(method, url, req_query_string, req_headers, req_data, **kwargs):
+        pass
 
     @abstractmethod
     def find(self, method, url, req_query_string, req_headers, req_data):
@@ -89,8 +91,8 @@ class BaseHttpCache(object):
         pass
 
     @abstractmethod
-    def find_httpinfo(self, method, url, req_query_string, req_headers, req_data):
-        # 返回HttpInfo对象
+    def find_httpinfo(self, _id):
+        # 用缓存id返回返回HttpInfo对象
         pass
 
     @abstractmethod
@@ -111,6 +113,22 @@ class BaseHttpCache(object):
 
 class BaseHttpInfo(object):
     __metaclass__ = ABCMeta
+    def __init__(self, method, url, req_query_string, req_headers, req_data, status_code, res_headers):
+        # http method type | 请求类型，如GET
+        self.method = method
+        # http url | 请求URL地址，包含domain和port，没有加上query string
+        self.url = url
+        # query string | 在url '?'后面跟着的
+        self.req_query_string = req_query_string
+        # request headers | 请求头
+        self.req_headers = req_headers
+        # request data | http请求 data
+        self.req_data = req_data
+        # http status code | http 状态码
+        self.status_code = status_code
+        # http respond headers | 返回头
+        self.res_headers = res_headers if isinstance(res_headers, CaseInsensitiveDict) \
+            else CaseInsensitiveDict(res_headers)
 
     @staticmethod
     def get_id(method, url, req_query_string, req_headers, req_data):

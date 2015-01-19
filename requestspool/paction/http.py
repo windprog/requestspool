@@ -13,7 +13,7 @@ from httpappengine import url
 from httplib import responses
 
 from requestspool.util import get_route, get_all_routes
-from requestspool.route import TIMEOUT_STATUS_CODE
+from requestspool.route import TIMEOUT_STATUS_CODE, SERVICE_UNAVAILABLE_STATUS_CODE
 
 # 载入route
 get_all_routes()
@@ -52,20 +52,35 @@ def all_req(path_url, environ, start_response):
 
 
 def requests_timeout(start_response):
-    from httplib import INTERNAL_SERVER_ERROR
+    from httplib import GATEWAY_TIMEOUT
     s = "requests timeout!"
 
-    start_response("{0} Internal Server Error".format(INTERNAL_SERVER_ERROR), [
+    start_response("{0} {1}".format(GATEWAY_TIMEOUT, responses.get(GATEWAY_TIMEOUT, 'OK')), [
         ("Content-Type", "text/plain"),
         ("Content-Length", str(len(s)))
     ])
 
-    return s
+    return (s,)
+
+def requests_service_unavailable(start_response):
+    from httplib import SERVICE_UNAVAILABLE
+    s = "server overload!"
+
+    start_response("{0} {1}".format(SERVICE_UNAVAILABLE, responses.get(SERVICE_UNAVAILABLE, 'OK')), [
+        ("Content-Type", "text/plain"),
+        ("Content-Length", str(len(s)))
+    ])
+
+    return (s,)
+
+
 
 
 def show_response(status_code, headers, output, start_response):
     if status_code == TIMEOUT_STATUS_CODE:
         return requests_timeout(start_response)
+    elif status_code == SERVICE_UNAVAILABLE_STATUS_CODE:
+        return requests_service_unavailable(start_response)
     start_response(
         "{0} {1}".format(status_code, responses.get(status_code, 'OK')),
         headers.items())
