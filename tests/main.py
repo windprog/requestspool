@@ -6,10 +6,12 @@ Copyright (c) 2014 windpro
 
 Author  :   windpro
 E-mail  :   windprog@gmail.com
-Date    :   14/12/26
+Date    :   15/1/18
 Desc    :   
 """
-# 连接超时
-TIMEOUT_STATUS_CODE = -1
-# 对方服务器无法连接
-SERVICE_UNAVAILABLE_STATUS_CODE = -2
+from normal import *
+from backupdate import *
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()

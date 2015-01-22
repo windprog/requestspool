@@ -1,6 +1,6 @@
 gevent>=1.0.1
 Werkzeug>=0.9.6
-httpappengine>=0.1.8
-pymongo
+httpappengine>=0.2.3
+pymongo>=2.7.2
 requests
 lxml

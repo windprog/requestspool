@@ -14,4 +14,5 @@ from httpappengine.util import run_server
 
 os.environ.setdefault("APPENGINE_SETTINGS_MODULE", "requestspool.config")
 
-run_server()
+if __name__ == '__main__':
+    run_server()

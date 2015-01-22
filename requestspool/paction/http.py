@@ -13,6 +13,7 @@ from httpappengine import url
 from httplib import responses
 
 from requestspool.util import get_route, get_all_routes
+from requestspool.route import TIMEOUT_STATUS_CODE, SERVICE_UNAVAILABLE_STATUS_CODE
 
 # 载入route
 get_all_routes()
@@ -50,11 +51,38 @@ def all_req(path_url, environ, start_response):
                              req_data=req_data, req_headers=req_headers)
 
 
+def requests_timeout(start_response):
+    from httplib import GATEWAY_TIMEOUT
+    s = "requests timeout!"
+
+    start_response("{0} {1}".format(GATEWAY_TIMEOUT, responses.get(GATEWAY_TIMEOUT, 'OK')), [
+        ("Content-Type", "text/plain"),
+        ("Content-Length", str(len(s)))
+    ])
+
+    return (s,)
+
+def requests_service_unavailable(start_response):
+    from httplib import SERVICE_UNAVAILABLE
+    s = "server overload!"
+
+    start_response("{0} {1}".format(SERVICE_UNAVAILABLE, responses.get(SERVICE_UNAVAILABLE, 'OK')), [
+        ("Content-Type", "text/plain"),
+        ("Content-Length", str(len(s)))
+    ])
+
+    return (s,)
+
+
 def show_response(status_code, headers, output, start_response):
+    if status_code == TIMEOUT_STATUS_CODE:
+        return requests_timeout(start_response)
+    elif status_code == SERVICE_UNAVAILABLE_STATUS_CODE:
+        return requests_service_unavailable(start_response)
     start_response(
         "{0} {1}".format(status_code, responses.get(status_code, 'OK')),
         headers.items())
-    return output
+    return (output,)
 
 @url("/http://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def http_req(path_url, environ, start_response):
@@ -66,3 +94,11 @@ def http_req(path_url, environ, start_response):
 def https_req(path_url, environ, start_response):
     status_code, headers, output = all_req(u'https://'+path_url, environ, start_response)
     return show_response(status_code, headers, output, start_response)
+
+
+def application(environ, start_response):
+    if environ["PATH_INFO"].startswith("/http://"):
+        return http_req(environ["PATH_INFO"][8:], environ, start_response)
+    else:
+        from httpappengine.helper import server_error
+        return server_error(start_response)

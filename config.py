@@ -9,7 +9,8 @@ E-mail  :   windprog@gmail.com
 Date    :   14/12/26
 Desc    :   详细配置说明请参考httpappengine/engine/config.py
 """
-DEBUG = True
+# 速度统计为gevent模块,启用True将会不正常
+DEBUG = False
 
 PORT = 8801
 
