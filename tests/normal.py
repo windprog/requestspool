@@ -91,4 +91,3 @@ class CacheHttpTestCase(TestCase):
         self.assertTrue(s2.total_seconds() + s1.total_seconds() > count_time / 1000.0)
         # 访问百度的时间不超过3秒
         self.assertTrue(s2.total_seconds() + s1.total_seconds() < (count_time / 1000.0) + 3)
-
