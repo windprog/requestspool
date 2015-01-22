@@ -45,9 +45,6 @@ DEFAULT_HTTPINFO_VERSION = "1"
 # 默认后台下载队列长度,超出的话抛弃或者打入日志
 BACKEND_RUNNER_COUNT = 1000
 
-# 最大同步锁数量
-MAX_LOCK_NUM = 500
-
 # 运行临时文件
 STUFF_PATH = os.path.join(os.path.realpath(os.path.dirname(__file__)), '..', 'stuff')
 STUFF_LOG_PATH = os.path.join(STUFF_PATH, 'logs')
@@ -71,4 +68,6 @@ ACTIONS = [
 
 # 使用单进程模式
 WORKERS = 1
-# ENGINE = "werkzeug"
+
+# 使用无gevent线程模式(兼容pymongo模块)
+NEED_GEVENT_THREADPOOL = False

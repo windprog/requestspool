@@ -10,6 +10,8 @@ Date    :   15/1/18
 Desc    :   
 """
 import sys,os
+
+os.environ.setdefault("APPENGINE_SETTINGS_MODULE", "requestspool.config")
 project_loc = os.path.join(os.path.dirname(__file__), '../')
 sys.path.append(project_loc)
 
@@ -19,7 +21,6 @@ import datetime
 import config
 from requestspool.cache import cache, CACHE_RESULT, CACHE_RESULT_TYPE, CACHE_CONTROL, CACHE_CONTROL_TYPE
 
-from requestspool.util import get_route
 
 SERVICE_URI = 'http://localhost:%s/' % config.PORT
 
@@ -40,7 +41,20 @@ class Settings(object):
             globals()["AvgBdReqTime"] = bd_time/retry_count
         return globals()["AvgBdReqTime"]
 
+    def get_test_url1(self):
+        # 请自行决定测试url
+        import test_config
+        return test_config.Test_url1
+
+    def get_test_url2(self):
+        # 请自行决定测试url
+        import test_config
+        return test_config.Test_url2
+
+
     AvgBdReqTime = property(statistics_baidu_req_time)
+    TestUrl1 = property(get_test_url1)
+    TestUrl2 = property(get_test_url2)
 
 settings = Settings()
 
@@ -58,6 +72,7 @@ class TestCase(BaseTestCase):
 def get_max_cache_time():
     return settings.AvgBdReqTime if settings.AvgBdReqTime > 0.1 else 0.1
 
+
 '''
     httplib版本:https://github.com/whitmo/WSGIProxy/blob/master/wsgiproxy/exactproxy.py:proxy_exact_request
 '''
@@ -68,10 +83,10 @@ def call_http_request(url, method, req_headers=None, req_data=None, req_query_st
     d2 = datetime.datetime.now()
     from requests.models import RequestEncodingMixin
 
-    print 'call http %s%s time:%s' % (
-    url, '?' + RequestEncodingMixin._encode_params(req_query_string) if req_query_string else '',
-    (d2-d1).total_seconds())
+    print 'call http %s%s time:%s' % (url,
+      '?' + RequestEncodingMixin._encode_params(req_query_string) if req_query_string else '',(d2-d1).total_seconds())
     return result
+
 
 class TestReqInfo(object):
     def __init__(self, method, url, req_query_string=None, req_headers=None, req_data=None):
@@ -89,6 +104,9 @@ class TestReqInfo(object):
             url=self.url, method=self.method, req_headers=self.req_headers,
             req_data=self.req_data, req_query_string=self.req_query_string
         )
+
+    def get_cache_http_info(self):
+        return cache.find_httpinfo(self.get_id())
 
     def is_incache(self):
         update_time = cache.get_update_time(self.method, self.url, self.req_query_string,

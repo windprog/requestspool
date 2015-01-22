@@ -74,8 +74,6 @@ def requests_service_unavailable(start_response):
     return (s,)
 
 
-
-
 def show_response(status_code, headers, output, start_response):
     if status_code == TIMEOUT_STATUS_CODE:
         return requests_timeout(start_response)
@@ -84,7 +82,7 @@ def show_response(status_code, headers, output, start_response):
     start_response(
         "{0} {1}".format(status_code, responses.get(status_code, 'OK')),
         headers.items())
-    return output
+    return (output,)
 
 @url("/http://<path:path_url>", "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")
 def http_req(path_url, environ, start_response):
@@ -96,3 +94,12 @@ def http_req(path_url, environ, start_response):
 def https_req(path_url, environ, start_response):
     status_code, headers, output = all_req(u'https://'+path_url, environ, start_response)
     return show_response(status_code, headers, output, start_response)
+
+
+def application(environ, start_response):
+    if environ["PATH_INFO"].startswith("/http://"):
+        return http_req(environ["PATH_INFO"][8:], environ, start_response)
+    else:
+        from httpappengine.helper import server_error
+        return server_error(start_response)
+

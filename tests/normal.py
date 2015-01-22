@@ -19,18 +19,12 @@ import time
 from requestspool import config
 
 
-
-
 def check():
     # 检测服务运行是否正常
     return 'Running' in requests.get(SERVICE_URI + 'check').text
 
 
-
 print 'statistics baidu request time: %s' % settings.AvgBdReqTime
-
-
-
 
 
 class CacheClassTestCase(TestCase):

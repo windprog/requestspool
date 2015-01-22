@@ -124,7 +124,7 @@ class BackendRun(object):
         route = kwargs.pop("route")
         if not route or not isinstance(route, BaseRoute):
             return
-        backend_call(route.call_http_request, **kwargs)
+        backend_call(route.sync_request_control, **kwargs)
 
     def __len__(self):
         return len(self._queue)

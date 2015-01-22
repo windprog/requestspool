@@ -25,7 +25,7 @@ def call_http_request(url, method, req_headers=None, req_data=None, req_query_st
         from requests.models import RequestEncodingMixin
         import os
 
-        print 'call http %s%s pid:%s' % (
+        print 'calling http %s%s pid:%s' % (
         url, '?' + RequestEncodingMixin._encode_params(req_query_string) if req_query_string else '', os.getpid())
     return getattr(requests, method.lower())('%s' % url, params=req_query_string, data=req_data, headers=req_headers,
                                              **kwargs)

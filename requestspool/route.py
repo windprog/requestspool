@@ -22,16 +22,15 @@ import re
 import time
 import gevent
 from gevent.lock import RLock
-
+from gevent.event import AsyncResult
 from requests import exceptions
-
-from .config import MAX_LOCK_NUM, DEBUG
 
 from interface import BaseRoute, BaseSpeed, BaseUpdate
 from http import get_http_result
 from cache import cache, CACHE_CONTROL, CACHE_CONTROL_TYPE, CACHE_RESULT, CACHE_RESULT_TYPE
 from update import BackendRun
 from .util import backend_call
+from gevent.event import Event
 
 
 ONESECOND = 1000.0
@@ -57,29 +56,15 @@ class MultiprocessingValue():
     value = property(get_value, set_value)
 
 
+class HttpEvent(object):
+    def __init__(self):
+        self._result = AsyncResult()
+
+    value = property(lambda self: self._result.get(), lambda self, value: self._result.set(value))
+
+
 class Speed(BaseSpeed):
     # 速度控制器
-
-    # -----------------getter setter----------------- #
-    def get_last_count_time(self):
-        return self._last_count_time.value
-
-    def set_last_count_time(self, value):
-        self._last_count_time.value = value
-
-    def get_one_clock_req(self):
-        return self._one_clock_req.value
-
-    def set_one_clock_req(self, value):
-        self._one_clock_req.value = value
-
-    def get_waiting_req(self):
-        return self._waiting_req.value
-
-    def set_waiting_req(self, value):
-        self._waiting_req.value = value
-
-    # ----------------------------------------------- #
 
     def __init__(self, limit_req, count_time=ONESECOND):
         # 单位时钟时间，默认1秒，单位毫秒
@@ -102,19 +87,21 @@ class Speed(BaseSpeed):
 
         # 最大同步锁数量
         # 当前正在下载的id上锁,相同的下载全部阻塞
-        self._sync_id_default_value = ' '*cache.ID_LENGTH
-        lock_count = limit_req if limit_req < MAX_LOCK_NUM else MAX_LOCK_NUM
-        self._sync_id_list = [MultiprocessingValue('c', self._sync_id_default_value) for _ in xrange(lock_count)]
-        self._sync_lock_list = [RLock() for _ in xrange(lock_count)]
-        # 要遍历_sync_id_list,必须上锁,因为_sync_id_list是RawArray
-        self._sync_lock_main = RLock()
+        self._sync_event_dict = {}
+        self._sync_event_lock = RLock()
 
         # 开始定时后台更新
         self._spawn = backend_call(self.__forever)
 
-    last_count_time = property(get_last_count_time, set_last_count_time)
-    one_clock_req = property(get_one_clock_req, set_one_clock_req)
-    waiting_req = property(get_waiting_req, set_waiting_req)
+    last_count_time = property(lambda self: self._last_count_time.value,
+                               lambda self, value: setattr(self._last_count_time, "value", value))
+    one_clock_req = property(lambda self: self._one_clock_req.value,
+                               lambda self, value: setattr(self._one_clock_req, "value", value))
+    waiting_req = property(lambda self: self._waiting_req.value,
+                               lambda self, value: setattr(self._waiting_req, "value", value))
+    sync_event_dict = property(lambda self: self._sync_event_dict)
+    sync_event_lock = property(lambda self: self._sync_event_lock)
+
 
     def _reset_clock(self):
         self.last_count_time = time.time()
@@ -142,29 +129,53 @@ class Speed(BaseSpeed):
             self.one_clock_req += 1
 
     def add_back_req(self, route, **kwargs):
+        assert isinstance(route, SpeedRoute)
         self._callback.add(route=route, **kwargs)
 
-    def id_in_lockpool(self, _id):
-        for m_array in self._sync_id_list:
-            if _id == m_array.value:
-                return True
-        return False
-
-    def finish_id_lock(self, _id):
-        for m_array in self._sync_id_list:
-            if _id == m_array.value:
-                m_array.value = self._sync_id_default_value
-
-    def get_id_lock(self, _id):
-        for i, m_array in enumerate(self._sync_id_list):
-            if self._sync_id_default_value == m_array.value:
-                m_array.value = _id
-                return self._sync_lock_list[i]
-            elif _id == m_array.value:
-                return self._sync_lock_list[i]
-
-    def get_sync_main_lock(self):
-        return self._sync_lock_main
+    def add_sync_req(self, route, try_count=0, **kwargs):
+        assert isinstance(route, SpeedRoute)
+        if try_count > 3:
+            print u"递归重试超过三次, 直接使用同步结果返回"
+            return route.sync_http_request(**kwargs)
+        # 事件处理
+        _id = cache.get_id(**kwargs)
+        _sync = True
+        # with self.sync_event_lock:  # 新建连接进行加锁操作字典,其实加不加都一样,因为greenlet是执行到阻塞才会切换执行的.
+        if _id in self.sync_event_dict:
+            _event = self.sync_event_dict[_id]
+            _sync = False
+        else:
+            _event = Event()
+            self.sync_event_dict[_id] = _event
+        if _sync:
+            # 同步处理,其他相同链接进入等待
+            try:
+                result = route.sync_http_request(**kwargs)
+                if _id in self.sync_event_dict:
+                    self.sync_event_dict.pop(_id)
+                # 事件处理成功
+                return result
+            except:
+                result = (SERVICE_UNAVAILABLE_STATUS_CODE, {}, "")
+            finally:
+                # 通知
+                _event.set()
+            return result
+        else:
+            # 阻塞
+            _event.wait()
+            if not route.update:
+                # 没有更新控制,直接使用同步结果
+                return route.sync_http_request(**kwargs)
+            elif route.update.is_expired_incache(**kwargs)[1]:
+                # 其他连接储存了缓存
+                url_info, res_data = cache.find(**kwargs)
+                result = (url_info.status_code, url_info.res_headers, res_data)
+                return result
+            else:
+                # 进入递归
+                try_count += 1
+                return self.add_sync_req(route, try_count, **kwargs)
 
     def __forever(self):
         self._running = True
@@ -202,7 +213,6 @@ class Speed(BaseSpeed):
                 gevent.sleep(s_time)
 
 
-
 class SpeedRoute(BaseRoute):
     def __init__(self, _type, speed=None, update=None, value=None):
         self._type = _type
@@ -214,7 +224,7 @@ class SpeedRoute(BaseRoute):
         if update:
             if not isinstance(update, BaseUpdate):
                 raise ValueError('update must be BaseUpdate subclass instance')
-        self._update = update
+        self.update = update
 
     def add_req(self):
         if self._speed:
@@ -238,72 +248,41 @@ class SpeedRoute(BaseRoute):
         self.finish_req()
         return status_code, res_headers, output
 
-    def _call_http_request(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
+    def sync_http_request(self, url, method, req_data=None, req_headers=None, req_query_string=None, **kwargs):
         # 失败重试
         # 储存符合的结果到缓存中
         req_kwargs = dict(
             url=url, method=method, req_headers=req_headers, req_data=req_data, req_query_string=req_query_string,
             # 设置请求超时
-            timeout=self._update.requests_timeout if self._update and self._update.requests_timeout else None,
+            timeout=self.update.requests_timeout if self.update and self.update.requests_timeout else None,
             **kwargs)
         status_code, res_headers, output = self._get_http_result(**req_kwargs)
-        if self._update:
+        if self.update:
             save_dict = dict(method=method, url=url, req_query_string=req_query_string, req_headers=req_headers,
                              req_data=req_data, status_code=status_code, res_headers=res_headers, res_data=output)
-            if self._update.retry_check_callback and self._update.retry_check_callback(**save_dict):
+            if self.update.retry_check_callback and self.update.retry_check_callback(**save_dict):
                 # 符合重试条件
-                for retry_count in xrange(self._update.retry_limit):
+                for retry_count in xrange(self.update.retry_limit):
                     # 重新发起连接
                     status_code, res_headers, output = self._get_http_result(**req_kwargs)
                     save_dict.update(dict(status_code=status_code, res_headers=res_headers, res_data=output))
                     if status_code == TIMEOUT_STATUS_CODE:
                         # 继续重试
                         continue
-                    if not self._update.retry_check_callback(**save_dict):
+                    if not self.update.retry_check_callback(**save_dict):
                         # 不再需要重试
                         break
-            # status_code == TIMEOUT_STATUS_CODE 请求超时
-            if status_code != TIMEOUT_STATUS_CODE and (not self._update.save_check_callback or
-                (self._update.save_check_callback and self._update.save_check_callback(**save_dict))):
+            # status_code == TIMEOUT_STATUS_CODE 请求超时  SERVICE_UNAVAILABLE_STATUS_CODE 连接失败
+            if status_code != TIMEOUT_STATUS_CODE and status_code != SERVICE_UNAVAILABLE_STATUS_CODE and \
+                    (not self.update.save_check_callback
+                     or (self.update.save_check_callback and self.update.save_check_callback(**save_dict))):
                 # 需要缓存
                 cache.save(**save_dict)
         return status_code, res_headers, output
 
-    def call_http_request(self, **kwargs):
-        # 锁处理
-        if self._speed:
-            # 存在speed控制
-            _id = cache.get_id(**kwargs)
-            _lock = None
-            _sync = None
-            with self._speed.get_sync_main_lock():
-                if self._speed.id_in_lockpool(_id):
-                    _sync = False
-                else:
-                    _sync = True
-                _lock = self._speed.get_id_lock(_id)
-
-            if _lock is not None and _sync is not None:
-                # 有空余的锁
-                if _sync:
-                    # 同步处理,其他相同链接进入等待
-                    with _lock:
-                        result = self._call_http_request(**kwargs)
-                        with self._speed.get_sync_main_lock():
-                            # 释放锁空间
-                            self._speed.finish_id_lock(_id)
-                        return result
-
-                else:
-                    with _lock:
-                        # 等待其他连接处理完成
-                        pass
-                    _, is_in_cache = self._update.is_expired_incache(**kwargs)
-                    if is_in_cache:
-                        # 其他连接储存了缓存
-                        url_info, res_data = cache.find(**kwargs)
-                        return url_info.status_code, url_info.res_headers, res_data
-        return self._call_http_request(**kwargs)
+    def sync_request_control(self, **kwargs):
+        # 进入speed sync控制
+        return self._speed.add_sync_req(self, **kwargs)
 
     @staticmethod
     def parse_nocache_res(status_code, res_headers, res_data):
@@ -321,7 +300,7 @@ class SpeedRoute(BaseRoute):
         if self._speed:
             self._speed.add_back_req(route=self, **kwargs)
         else:
-            backend_call(self.call_http_request, **kwargs)
+            backend_call(self.sync_request_control, **kwargs)
 
     '''
         requestpool_headers : 项目控制所需的header,当出现在这里时不会出现在普通request headers
@@ -330,10 +309,10 @@ class SpeedRoute(BaseRoute):
 
     def http_result(self, requestpool_headers=None, **kwargs):
         # 判断缓存条件
-        if not self._update:
+        if not self.update:
             # 没有缓存配置，不保存缓存
-            return self.parse_nocache_res(*self.call_http_request(**kwargs))
-        is_expired, is_in_cache = self._update.is_expired_incache(**kwargs)
+            return self.parse_nocache_res(*self.sync_request_control(**kwargs))
+        is_expired, is_in_cache = self.update.is_expired_incache(**kwargs)
         if is_in_cache:
             # 存在缓存
             # 外部控制
@@ -347,23 +326,23 @@ class SpeedRoute(BaseRoute):
                     return self.parse_cache_res(*cache.find(**kwargs))
                 elif requestpool_cache_control == CACHE_CONTROL_TYPE.SYNC:
                     # 强制更新
-                    return self.parse_nocache_res(*self.call_http_request(**kwargs))
+                    return self.parse_nocache_res(*self.sync_request_control(**kwargs))
 
             # 自动控制
             if is_expired:
                 # 超出缓存时间
-                if not self._update.check_sync():
+                if not self.update.check_sync():
                     # 异步取，拿旧数据
                     self.add_back_req(**kwargs)
                     return self.parse_cache_res(*cache.find(**kwargs))
                 else:
                     # 同步获取
-                    return self.parse_nocache_res(*self.call_http_request(**kwargs))
+                    return self.parse_nocache_res(*self.sync_request_control(**kwargs))
             else:
                 # 在缓存周期内，不发起http 请求，直接取缓存。
                 return self.parse_cache_res(*cache.find(**kwargs))
         else:
-            return self.parse_nocache_res(*self.call_http_request(**kwargs))
+            return self.parse_nocache_res(*self.sync_request_control(**kwargs))
 
 
 class NormalRoute(SpeedRoute):

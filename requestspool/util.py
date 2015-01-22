@@ -48,3 +48,33 @@ def backend_call(callback, **kwargs):
         t = threading.Thread(target=callback, kwargs=kwargs)
         t.start()
         return t
+
+
+def patch_requests():
+    '''
+        gevent patch
+        test it work in requests==2.5.1
+    '''
+    import gevent.socket
+    import httplib
+    setattr(httplib, "socket", gevent.socket)
+    import requests.packages.urllib3.connection
+    setattr(requests.packages.urllib3.connection, "socket", gevent.socket)
+    import requests.packages.urllib3.connectionpool
+    setattr(requests.packages.urllib3.connectionpool, "socket", gevent.socket)
+    import requests.packages.urllib3.util.connection
+    setattr(requests.packages.urllib3.util.connection, "socket", gevent.socket)
+    # 这个是自行编写的
+    import requests.utils
+    setattr(requests.utils, "socket", gevent.socket)
+
+
+def pdb_pm():
+    from sys import exc_info
+    from traceback import print_exc
+    from pdb import post_mortem
+    # 使用 pdb 进入异常现场。
+    _, _, tb = exc_info()
+    print_exc()
+    # 进入PDB
+    post_mortem(tb)

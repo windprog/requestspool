@@ -56,8 +56,8 @@ class CacheHttpTestCase(TestCase):
         # reset clock
         # 强制缓存过期
         route = get_route(self.req.url)
-        if route._update.is_sync:
-            expired = route._update.expired
+        if route.update.is_sync:
+            expired = route.update.expired
             time.sleep(expired)
 
             s3, r3 = self.count_time(self.req.req)
@@ -67,19 +67,20 @@ class CacheHttpTestCase(TestCase):
             self.assertTrue(s3.total_seconds() < 3)  # 下载时间小于3秒
             self.assertTrue(s3.total_seconds() > settings.AvgBdReqTime/4)  # 下载时间 大于 平均下载时间的四分之一
         else:
-            expired = route._update.expired
+            old_res_headers = self.req.get_cache_http_info().res_headers
+            # 等待缓存过期
+            expired = route.update.expired
             time.sleep(expired)
 
-            jobs = []
-            jobs.append(gevent.spawn(self.count_time, self.req.req))
-            time.sleep(0.001)
-            # 删除旧缓存
-            jobs.append(gevent.spawn(self.req.delete))
-            time.sleep(0.001)
-            gevent.joinall(jobs)
-            s3, r3 = jobs[0].value
+            s3, r3 = self.count_time(self.req.req)
+            # 等待后台下载完成
+            time.sleep(3)  # 注释掉这条 date将会不等
+            new_res_headers = self.req.get_cache_http_info().res_headers
+
             self.assertTrue(self.req.is_incache())
             # 取缓存
             self.assertTrue(r3.headers.get(CACHE_RESULT) == CACHE_RESULT_TYPE.OLD)
+            # 缓存已更新
+            self.assertTrue(new_res_headers["date"] != old_res_headers["date"])
             self.assertTrue(s3 < s1)
             self.check_cache_result(s3, r3)  # 取缓存时间小于 下载时间
