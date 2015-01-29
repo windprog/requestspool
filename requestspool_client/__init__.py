@@ -108,9 +108,10 @@ class Client(object):
 def patch_requests(server="localhost:8801"):
     import requests
     import re
+    server_url = "http://" + server
     try:
         # 获取路由
-        routes = json.loads(requests.get("http://%s/admin/route/all" % server).content).get("route")
+        routes = json.loads(requests.get(server_url + "/admin/route/all").content).get("route")
     except:
         print "尚未启动服务或服务运行异常"
         raise ImportError
@@ -119,6 +120,8 @@ def patch_requests(server="localhost:8801"):
     old_request = requests.request
 
     def new_request(method, url, **kwargs):
+        if url.startswith(server_url):
+            return old_request(method, url, **kwargs)
         need_proxy = False
         for p in patterns:
             if p.match(url):
