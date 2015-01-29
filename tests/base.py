@@ -20,6 +20,7 @@ import requests
 import datetime
 import config
 from requestspool.cache import cache, CACHE_RESULT, CACHE_RESULT_TYPE, CACHE_CONTROL, CACHE_CONTROL_TYPE
+from requestspool.util import get_route
 
 
 SERVICE_URI = 'http://localhost:%s/' % config.PORT

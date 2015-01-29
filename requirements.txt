@@ -1,6 +1,7 @@
 gevent>=1.0.1
 Werkzeug>=0.9.6
-httpappengine>=0.2.3
+httpappengine>=0.3.0
 pymongo>=2.7.2
 requests
 lxml
+gevent-websocket>=0.9.2

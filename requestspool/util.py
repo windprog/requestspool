@@ -10,6 +10,8 @@ Date    :   15/1/6
 Desc    :   方法集合
 """
 from importlib import import_module
+import json
+import uuid
 
 
 def get_all_routes():
@@ -78,3 +80,7 @@ def pdb_pm():
     print_exc()
     # 进入PDB
     post_mortem(tb)
+
+
+def gen_user_id():
+    return str(uuid.uuid4()).replace("-", "")

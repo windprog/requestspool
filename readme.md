@@ -57,10 +57,11 @@ httpappengine依赖gevent，先安装gevent依赖库：libevent
 * regex正则路由
 * 访问限速
 * http的代理请求最高优先级,后台更新排队,队列去重
+* 基于websocket的广播(通知下载完成等)(https://github.com/jgelens/gevent-websocket)
 
 #TODO
 * 基于文件系统的缓存
 * 基于flask格式的路由
-* 基于websocket的广播(通知下载完成等)与异地同步(https://github.com/jgelens/gevent-websocket)
+* 基于websocket的异地同步
 * 远程获取配置信息
 * 添加hot cache 方式,提供更快的缓存提取方式,该方式储存的数据是临时性的

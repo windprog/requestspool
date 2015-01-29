@@ -31,6 +31,7 @@ from cache import cache, CACHE_CONTROL, CACHE_CONTROL_TYPE, CACHE_RESULT, CACHE_
 from update import BackendRun
 from .util import backend_call
 from gevent.event import Event
+from publish import ClientService, ALL_FIELDS as PUBLISH_FIELDS, FILE_ID
 
 
 ONESECOND = 1000.0
@@ -272,17 +273,27 @@ class SpeedRoute(BaseRoute):
                     if not self.update.retry_check_callback(**save_dict):
                         # 不再需要重试
                         break
+            # 广播数据
+            publish_dict = {k: v for k, v in save_dict.iteritems() if k in PUBLISH_FIELDS}
+
             # status_code == TIMEOUT_STATUS_CODE 请求超时  SERVICE_UNAVAILABLE_STATUS_CODE 连接失败
             if status_code != TIMEOUT_STATUS_CODE and status_code != SERVICE_UNAVAILABLE_STATUS_CODE and \
                     (not self.update.save_check_callback
                      or (self.update.save_check_callback and self.update.save_check_callback(**save_dict))):
                 # 需要缓存
                 cache.save(**save_dict)
+                # 把文件id加入广播
+                publish_dict[FILE_ID] = cache.get_id(method, url, req_query_string, req_headers, req_data)
+            # 广播下载
+            ClientService.add(**publish_dict)
         return status_code, res_headers, output
 
     def sync_request_control(self, **kwargs):
         # 进入speed sync控制
-        return self._speed.add_sync_req(self, **kwargs)
+        if self._speed:
+            return self._speed.add_sync_req(self, **kwargs)
+        else:
+            return self.sync_http_request(**kwargs)
 
     @staticmethod
     def parse_nocache_res(status_code, res_headers, res_data):

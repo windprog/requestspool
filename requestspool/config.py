@@ -71,3 +71,6 @@ WORKERS = 1
 
 # 使用无gevent线程模式(兼容pymongo模块)
 NEED_GEVENT_THREADPOOL = False
+
+# 启用websocket
+SUPPORT_WEBSOCKET = True

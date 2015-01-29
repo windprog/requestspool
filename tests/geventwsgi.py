@@ -45,6 +45,9 @@ def prof_call(func, *args):
 
 
 def yappi_prof_call(func, *args):
+    '''
+        https://code.google.com/p/yappi/wiki/usageyappi_v092
+    '''
     import yappi
     yappi.start()
     result = func(*args)
