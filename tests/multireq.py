@@ -24,7 +24,7 @@ def same_req():
     req = TestReqInfo("GET", settings.TestUrl1,
         req_query_string="",
         req_headers={}, req_data="")
-    # req.delete()
+    req.delete()
     jobs = []
     result = []
 

@@ -21,12 +21,13 @@ from .interface import BaseHttpInfo
     httplib版本:https://github.com/whitmo/WSGIProxy/blob/master/wsgiproxy/exactproxy.py:proxy_exact_request
 '''
 def call_http_request(url, method, req_headers=None, req_data=None, req_query_string=None, **kwargs):
-    if config.DEBUG:
+    if config.DEBUG or True:
         from requests.models import RequestEncodingMixin
         import os
-
-        print 'calling http %s%s pid:%s' % (
-        url, '?' + RequestEncodingMixin._encode_params(req_query_string) if req_query_string else '', os.getpid())
+        from publish import ClientService
+        print 'calling http %s%s pid:%s now_client_count:%s' % (
+        url, '?' + RequestEncodingMixin._encode_params(req_query_string) if req_query_string else '',
+        os.getpid(), len(ClientService.clients))
     return getattr(requests, method.lower())('%s' % url, params=req_query_string, data=req_data, headers=req_headers,
                                              **kwargs)
 

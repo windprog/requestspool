@@ -16,7 +16,7 @@ import time
 
 import config
 from requestspool.util import pdb_pm
-from client import Client
+from requestspool_client import Client
 
 
 publish_config = {

@@ -10,7 +10,7 @@ Date    :   15/1/9
 Desc    :   
 """
 from httpappengine import url, rest
-from httpappengine.helper import not_found
+from httpappengine.helper import not_found, server_error
 import json
 import re
 import gevent
@@ -26,29 +26,30 @@ def route_add(environ, start_response):
 
 @url("/admin/route/all", "GET")
 def route_show_all(environ, start_response):
-    # TODO 尚未完成
+    from requestspool.route import RegexRoute
     result = {
         "route": []
     }
     for route in get_all_routes():
-        r = {}
-
-        result['route'].append(r)
+        if isinstance(route, RegexRoute):
+            result['route'].append(route._pattern)
     return rest(start_response, result)
 
 
 @url("/check", "GET")
 def check(environ, start_response):
-    # 检测get_route
-    get_route('http://test')
-    s = "Running!\n"
+    try:
+        # 检测get_route
+        get_route('http://test')
+        s = "Running!\n"
 
-    start_response("200 OK", [
-        ("Content-Type", "text/plain"),
-        ("Content-Length", str(len(s)))
-    ])
-
-    return s
+        start_response("200 OK", [
+            ("Content-Type", "text/plain"),
+            ("Content-Length", str(len(s)))
+        ])
+        return s
+    except:
+        return server_error(start_response)
 
 
 @url("/", "GET")

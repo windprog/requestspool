@@ -41,7 +41,7 @@ default_config = {
 }
 
 '''
-    连接服务
+    连接广播服务
 '''
 def connect(service_url, config):
     try:
@@ -103,3 +103,29 @@ class Client(object):
             if name in BASE64_FIELDS:
                 result[name] = result[name].decode("base64")
         return result
+
+
+def patch_requests(server="localhost:8801"):
+    import requests
+    import re
+    try:
+        # 获取路由
+        routes = json.loads(requests.get("http://%s/admin/route/all" % server).content).get("route")
+    except:
+        print "尚未启动服务或服务运行异常"
+        raise ImportError
+    patterns = [re.compile(s) for s in routes if isinstance(s, basestring)]
+    # patch
+    old_request = requests.request
+
+    def new_request(method, url, **kwargs):
+        need_proxy = False
+        for p in patterns:
+            if p.match(url):
+                need_proxy = True
+                break
+        if need_proxy:
+            url = 'http://{server}/{url}'.format(server=server, url=url)
+        return old_request(method, url, **kwargs)
+
+    requests.request = new_request
