@@ -21,7 +21,7 @@ from .interface import BaseHttpInfo
     httplib版本:https://github.com/whitmo/WSGIProxy/blob/master/wsgiproxy/exactproxy.py:proxy_exact_request
 '''
 def call_http_request(url, method, req_headers=None, req_data=None, req_query_string=None, **kwargs):
-    if config.DEBUG or True:
+    if config.DEBUG:
         from requests.models import RequestEncodingMixin
         import os
         from publish import ClientService
